@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,12 +14,33 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func mustNewCastore(localStoreDir, localIndexStoreDir string) *store.CasyncStore {
+	castrDir, err := ioutil.TempDir("", "castr")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(castrDir)
+
+	caIdxDir, err := ioutil.TempDir("", "caidx")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(caIdxDir)
+
+	caStore, err := store.NewCasyncStore(castrDir, caIdxDir)
+	if err != nil {
+		panic(err)
+	}
+	return caStore
+}
+
 var (
 	tt = []struct {
 		storeName string
 		handler   *Handler
 	}{
 		{"MemoryStore", &Handler{BinaryCacheStore: store.NewMemoryStore()}},
+		{"CasyncStore", &Handler{BinaryCacheStore: mustNewCastore("/tmp/castr", "/tmp/caidx")}},
 	}
 
 	// tp describes the test plan.

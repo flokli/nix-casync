@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -68,8 +69,17 @@ func TestBinaryCacheStores(t *testing.T) {
 					}
 					v.handler.ServeHTTP(rr, req)
 
+					// read in the text fixture
+					f := readTestData(vv.filepath)
+					defer f.Close()
+					expectedContents, err := io.ReadAll(f)
+					if err != nil {
+						t.Fatal(err)
+					}
+
 					if strings.HasSuffix(vv.path, ".narinfo") {
 						assert.Equal(t, []string{"text/x-nix-narinfo"}, rr.Result().Header["Content-Type"])
+						assert.Equal(t, []string{fmt.Sprintf("%d", len(expectedContents))}, rr.Result().Header["Content-Length"])
 						assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
 					} else if strings.HasSuffix(vv.path, ".nar") {
 						assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
@@ -78,14 +88,6 @@ func TestBinaryCacheStores(t *testing.T) {
 
 					// read in the retrieved body
 					actualContents, err := io.ReadAll(rr.Result().Body)
-					if err != nil {
-						t.Fatal(err)
-					}
-
-					// read in the text fixture
-					f := readTestData(vv.filepath)
-					defer f.Close()
-					expectedContents, err := io.ReadAll(f)
 					if err != nil {
 						t.Fatal(err)
 					}

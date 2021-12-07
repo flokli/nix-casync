@@ -56,9 +56,13 @@ func (h *Handler) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// render narinfo
+		narinfoContent := narinfo.String()
+
 		w.Header().Add("Content-Type", "text/x-nix-narinfo")
-		// TODO: calc and send content-length
-		w.Write([]byte(narinfo.String()))
+		w.Header().Add("Content-Length", fmt.Sprintf("%d", len(narinfoContent)))
+
+		w.Write([]byte(narinfoContent))
 		return
 	}
 	if r.Method == http.MethodPut {

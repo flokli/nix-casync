@@ -102,7 +102,7 @@ func (h *Handler) handleNar(w http.ResponseWriter, r *http.Request) {
 			if err == store.ErrNotFound {
 				status = http.StatusNotFound
 			}
-			http.Error(w, fmt.Sprintf("handle-nar: %v", err), status)
+			http.Error(w, fmt.Sprintf("GET handle-nar: %v", err), status)
 			return
 		}
 
@@ -112,7 +112,7 @@ func (h *Handler) handleNar(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPut {
 		err := h.BinaryCacheStore.PutNar(r.Context(), narhash, r.Body)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("handle-nar: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
 			return
 		}
 

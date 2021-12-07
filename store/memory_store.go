@@ -35,16 +35,6 @@ func (m *MemoryStore) GetNarInfo(_ctx context.Context, outputhash []byte) (*nari
 	return nil, ErrNotFound
 }
 
-func (m *MemoryStore) GetNar(_ctx context.Context, narhash []byte) (io.ReadCloser, int, error) {
-	m.muNar.Lock()
-	defer m.muNar.Unlock()
-	v, ok := m.nar[nixbase32.EncodeToString(narhash)]
-	if ok {
-		return io.NopCloser(bytes.NewReader(v)), len(v), nil
-	}
-	return nil, 0, ErrNotFound
-}
-
 func (m *MemoryStore) PutNarInfo(_ctx context.Context, outputhash []byte, contents *narinfo.NarInfo) error {
 	// TODO: what to do if it already exists?
 	m.muNarinfo.Lock()
@@ -53,34 +43,27 @@ func (m *MemoryStore) PutNarInfo(_ctx context.Context, outputhash []byte, conten
 	return nil
 }
 
-func (m *MemoryStore) PutNar(ctx context.Context, narhash []byte) (io.WriteCloser, error) {
+func (m *MemoryStore) GetNar(_ctx context.Context, narhash []byte, w io.Writer) error {
+	m.muNar.Lock()
+	v, ok := m.nar[nixbase32.EncodeToString(narhash)]
+	m.muNar.Unlock()
+	if ok {
+		_, err := w.Write(v)
+		return err
+	}
+	return ErrNotFound
+}
+
+func (m *MemoryStore) PutNar(ctx context.Context, narhash []byte, r io.Reader) error {
+	bb := bytes.NewBuffer(nil)
+	_, err := io.Copy(bb, r)
+	if err != nil {
+		return err
+	}
+
 	// TODO: what to do if it already exists?
 	m.muNar.Lock()
-	defer m.muNar.Unlock()
-
-	return &MemoryStoreNarWriter{
-		narhash:     narhash,
-		memoryStore: m,
-	}, nil
-}
-
-type MemoryStoreNarWriter struct {
-	narhash     []byte
-	memoryStore *MemoryStore
-	contents    []byte
-}
-
-func (msnw *MemoryStoreNarWriter) Write(p []byte) (n int, err error) {
-	msnw.contents = append(msnw.contents, p...)
-	return len(p), nil
-}
-
-func (msnw *MemoryStoreNarWriter) Close() error {
-	// TODO: verify hash
-	// TODO: add handling to not call close two times
-	msnw.memoryStore.muNar.Lock()
-	defer msnw.memoryStore.muNar.Unlock()
-
-	msnw.memoryStore.nar[nixbase32.EncodeToString(msnw.narhash)] = msnw.contents
+	m.nar[nixbase32.EncodeToString(narhash)] = bb.Bytes()
+	m.muNar.Unlock()
 	return nil
 }

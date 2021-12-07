@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"os"
@@ -52,25 +53,35 @@ func TestNar(t *testing.T) {
 
 	narhash := nixbase32.MustDecodeString("0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd")
 
-	// Put a .nar file
-	w, err := bcs.PutNar(ctx, narhash)
-	assert.NoError(t, err)
-
-	data, err := os.ReadFile("../testdata/compression_none/nar/0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd.nar")
-	if assert.NoError(t, err) {
-		_, err := w.Write(data)
-		if assert.NoError(t, err) {
-			w.Close()
-
-			// Get it back
-			r, size, err := bcs.GetNar(ctx, narhash)
-			if assert.NoError(t, err) {
-				buf, err := io.ReadAll(r)
-				if assert.NoError(t, err) {
-					assert.Equal(t, data, buf)
-				}
-				assert.Equal(t, len(data), size)
-			}
-		}
+	// Read a .nar file
+	r, err := os.Open("../testdata/compression_none/nar/0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd.nar")
+	if err != nil {
+		t.Fatal()
 	}
+	defer r.Close()
+
+	err = bcs.PutNar(ctx, narhash, r)
+	if err != nil {
+		t.Fatal()
+	}
+
+	bb := bytes.NewBuffer(nil)
+
+	// Get it back
+	err = bcs.GetNar(ctx, narhash, bb)
+	if err != nil {
+		t.Fatal()
+	}
+
+	// Read the testdata in again
+	r, err = os.Open("../testdata/compression_none/nar/0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd.nar")
+	if err != nil {
+		t.Fatal()
+	}
+	expectedContents, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal()
+	}
+
+	assert.Equal(t, expectedContents, bb.Bytes())
 }

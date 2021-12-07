@@ -84,7 +84,6 @@ func TestBinaryCacheStores(t *testing.T) {
 					} else if strings.HasSuffix(vv.path, ".nar") {
 						assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
 						assert.Equal(t, []string{"application/x-nix-nar"}, rr.Result().Header["Content-Type"])
-						assert.Equal(t, []string{fmt.Sprintf("%d", len(expectedContents))}, rr.Result().Header["Content-Length"])
 					}
 
 					// read in the retrieved body

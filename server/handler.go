@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -94,7 +93,10 @@ func (h *Handler) handleNar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
-		narReader, size, err := h.BinaryCacheStore.GetNar(r.Context(), narhash)
+		w.Header().Add("Content-Type", "application/x-nix-nar")
+		//w.Header().Add("Content-Length", fmt.Sprintf("%d", size))
+
+		err := h.BinaryCacheStore.GetNar(r.Context(), narhash, w)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if err == store.ErrNotFound {
@@ -104,30 +106,13 @@ func (h *Handler) handleNar(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.Header().Add("Content-Type", "application/x-nix-nar")
-		w.Header().Add("Content-Length", fmt.Sprintf("%d", size))
-		io.Copy(w, narReader)
 		return
 	}
 
 	if r.Method == http.MethodPut {
-		nw, err := h.BinaryCacheStore.PutNar(r.Context(), narhash)
+		err := h.BinaryCacheStore.PutNar(r.Context(), narhash, r.Body)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("handle-nar: %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		// write payload into writer
-		_, err = io.Copy(nw, r.Body)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("handle-nar: copy: %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		// check for errors during close
-		err = nw.Close()
-		if err != nil {
-			http.Error(w, fmt.Sprintf("handle-nar: close: %v", err), http.StatusInternalServerError)
 			return
 		}
 

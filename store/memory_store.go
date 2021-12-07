@@ -35,14 +35,14 @@ func (m *MemoryStore) GetNarInfo(_ctx context.Context, outputhash []byte) (*nari
 	return nil, ErrNotFound
 }
 
-func (m *MemoryStore) GetNar(_ctx context.Context, narhash []byte) (io.ReadCloser, error) {
+func (m *MemoryStore) GetNar(_ctx context.Context, narhash []byte) (io.ReadCloser, int, error) {
 	m.muNar.Lock()
 	defer m.muNar.Unlock()
 	v, ok := m.nar[nixbase32.EncodeToString(narhash)]
 	if ok {
-		return io.NopCloser(bytes.NewReader(v)), nil
+		return io.NopCloser(bytes.NewReader(v)), len(v), nil
 	}
-	return nil, ErrNotFound
+	return nil, 0, ErrNotFound
 }
 
 func (m *MemoryStore) PutNarInfo(_ctx context.Context, outputhash []byte, contents *narinfo.NarInfo) error {

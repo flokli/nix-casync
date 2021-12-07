@@ -78,12 +78,13 @@ func TestBinaryCacheStores(t *testing.T) {
 					}
 
 					if strings.HasSuffix(vv.path, ".narinfo") {
+						assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
 						assert.Equal(t, []string{"text/x-nix-narinfo"}, rr.Result().Header["Content-Type"])
 						assert.Equal(t, []string{fmt.Sprintf("%d", len(expectedContents))}, rr.Result().Header["Content-Length"])
-						assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
 					} else if strings.HasSuffix(vv.path, ".nar") {
 						assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
 						assert.Equal(t, []string{"application/x-nix-nar"}, rr.Result().Header["Content-Type"])
+						assert.Equal(t, []string{fmt.Sprintf("%d", len(expectedContents))}, rr.Result().Header["Content-Length"])
 					}
 
 					// read in the retrieved body

@@ -11,7 +11,7 @@ import (
 // BinaryCacheStore describes the interface all Stores implement
 type BinaryCacheStore interface {
 	GetNarInfo(ctx context.Context, outputhash []byte) (*narinfo.NarInfo, error)
-	GetNar(ctx context.Context, narhash []byte) (io.ReadCloser, error)
+	GetNar(ctx context.Context, narhash []byte) (io.ReadCloser, int, error)
 
 	PutNarInfo(ctx context.Context, outputhash []byte, contents *narinfo.NarInfo) error
 

@@ -94,7 +94,7 @@ func (h *Handler) handleNar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
-		narReader, err := h.BinaryCacheStore.GetNar(r.Context(), narhash)
+		narReader, size, err := h.BinaryCacheStore.GetNar(r.Context(), narhash)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if err == store.ErrNotFound {
@@ -105,7 +105,7 @@ func (h *Handler) handleNar(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Add("Content-Type", "application/x-nix-nar")
-		// TODO: calc and send content-length
+		w.Header().Add("Content-Length", fmt.Sprintf("%d", size))
 		io.Copy(w, narReader)
 		return
 	}

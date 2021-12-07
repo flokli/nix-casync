@@ -63,12 +63,13 @@ func TestNar(t *testing.T) {
 			w.Close()
 
 			// Get it back
-			r, err := bcs.GetNar(ctx, narhash)
+			r, size, err := bcs.GetNar(ctx, narhash)
 			if assert.NoError(t, err) {
 				buf, err := io.ReadAll(r)
 				if assert.NoError(t, err) {
 					assert.Equal(t, data, buf)
 				}
+				assert.Equal(t, len(data), size)
 			}
 		}
 	}

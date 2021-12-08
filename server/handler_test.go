@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func mustNewCastore(localStoreDir, localIndexStoreDir string) *narstore.CasyncStore {
+func mustNewCastore() store.NarStore {
 	castrDir, err := ioutil.TempDir("", "castr")
 	if err != nil {
 		panic(err)
@@ -49,7 +49,7 @@ var (
 		}},
 		{"CasyncStore", &Handler{
 			NarinfoStore: store.NewMemoryStore(),
-			NarStore:     mustNewCastore("/tmp/castr", "/tmp/caidx"),
+			NarStore:     mustNewCastore(),
 		}},
 	}
 

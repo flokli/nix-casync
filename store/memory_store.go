@@ -43,27 +43,40 @@ func (m *MemoryStore) PutNarInfo(_ctx context.Context, outputhash []byte, conten
 	return nil
 }
 
-func (m *MemoryStore) GetNar(_ctx context.Context, narhash []byte, w io.Writer) error {
+func (m *MemoryStore) GetNar(_ctx context.Context, narhash []byte) (io.ReadCloser, int64, error) {
 	m.muNar.Lock()
 	v, ok := m.nar[nixbase32.EncodeToString(narhash)]
 	m.muNar.Unlock()
 	if ok {
-		_, err := w.Write(v)
-		return err
+		return io.NopCloser(bytes.NewReader(v)), int64(len(v)), nil
 	}
-	return ErrNotFound
+	return nil, 0, ErrNotFound
 }
 
-func (m *MemoryStore) PutNar(ctx context.Context, narhash []byte, r io.Reader) error {
-	bb := bytes.NewBuffer(nil)
-	_, err := io.Copy(bb, r)
-	if err != nil {
-		return err
-	}
+func (m *MemoryStore) PutNar(ctx context.Context, narhash []byte) (io.WriteCloser, error) {
+	return &memoryStoreNarWriter{
+		narhash:     narhash,
+		memoryStore: m,
+	}, nil
+}
 
+type memoryStoreNarWriter struct {
+	narhash     []byte
+	memoryStore *MemoryStore
+	contents    []byte
+}
+
+func (msnw *memoryStoreNarWriter) Write(p []byte) (n int, err error) {
+	msnw.contents = append(msnw.contents, p...)
+	return len(p), nil
+}
+
+func (msnw *memoryStoreNarWriter) Close() error {
+	// TODO: verify hash
+	// TODO: add handling to not call close two times
 	// TODO: what to do if it already exists?
-	m.muNar.Lock()
-	m.nar[nixbase32.EncodeToString(narhash)] = bb.Bytes()
-	m.muNar.Unlock()
+	msnw.memoryStore.muNar.Lock()
+	msnw.memoryStore.nar[nixbase32.EncodeToString(msnw.narhash)] = msnw.contents
+	msnw.memoryStore.muNar.Unlock()
 	return nil
 }

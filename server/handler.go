@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -93,10 +94,8 @@ func (h *Handler) handleNar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
-		w.Header().Add("Content-Type", "application/x-nix-nar")
-		//w.Header().Add("Content-Length", fmt.Sprintf("%d", size))
 
-		err := h.BinaryCacheStore.GetNar(r.Context(), narhash, w)
+		r, size, err := h.BinaryCacheStore.GetNar(r.Context(), narhash)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if err == store.ErrNotFound {
@@ -105,15 +104,30 @@ func (h *Handler) handleNar(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("GET handle-nar: %v", err), status)
 			return
 		}
+		defer r.Close()
+
+		w.Header().Add("Content-Type", "application/x-nix-nar")
+		w.Header().Add("Content-Length", fmt.Sprintf("%d", size))
+		io.Copy(w, r)
 
 		return
 	}
 
 	if r.Method == http.MethodPut {
-		err := h.BinaryCacheStore.PutNar(r.Context(), narhash, r.Body)
+		w2, err := h.BinaryCacheStore.PutNar(r.Context(), narhash)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
 			return
+		}
+
+		// copy the body of the request into w2
+		_, err = io.Copy(w2, r.Body)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
+		}
+		err = w2.Close()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
 		}
 
 		return

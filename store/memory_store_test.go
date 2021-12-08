@@ -1,7 +1,6 @@
 package store
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"os"
@@ -60,28 +59,35 @@ func TestNar(t *testing.T) {
 	}
 	defer r.Close()
 
-	err = bcs.PutNar(ctx, narhash, r)
+	w, err := bcs.PutNar(ctx, narhash)
 	if err != nil {
 		t.Fatal()
 	}
 
-	bb := bytes.NewBuffer(nil)
+	io.Copy(w, r)
+	w.Close()
 
 	// Get it back
-	err = bcs.GetNar(ctx, narhash, bb)
+	r2, size, err := bcs.GetNar(ctx, narhash)
 	if err != nil {
 		t.Fatal()
 	}
 
 	// Read the testdata in again
-	r, err = os.Open("../testdata/compression_none/nar/0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd.nar")
+	expectedR, err := os.Open("../testdata/compression_none/nar/0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd.nar")
 	if err != nil {
 		t.Fatal()
 	}
-	expectedContents, err := io.ReadAll(r)
+	expectedContents, err := io.ReadAll(expectedR)
 	if err != nil {
 		t.Fatal()
 	}
 
-	assert.Equal(t, expectedContents, bb.Bytes())
+	actualContents, err := io.ReadAll(r2)
+	if err != nil {
+		t.Fatal()
+	}
+
+	assert.Equal(t, expectedContents, actualContents)
+	assert.Equal(t, int64(len(expectedContents)), size)
 }

@@ -19,13 +19,13 @@ func mustNewCastore(localStoreDir, localIndexStoreDir string) *store.CasyncStore
 	if err != nil {
 		panic(err)
 	}
-	defer os.RemoveAll(castrDir)
+	//defer os.RemoveAll(castrDir)
 
 	caIdxDir, err := ioutil.TempDir("", "caidx")
 	if err != nil {
 		panic(err)
 	}
-	defer os.RemoveAll(caIdxDir)
+	//defer os.RemoveAll(caIdxDir)
 
 	caStore, err := store.NewCasyncStore(castrDir, caIdxDir)
 	if err != nil {
@@ -80,6 +80,7 @@ func TestBinaryCacheStores(t *testing.T) {
 						t.Fatal(err)
 					}
 					v.handler.ServeHTTP(rr, req)
+					assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
 				})
 
 				// retrieve back the file

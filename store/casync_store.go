@@ -75,20 +75,6 @@ func (c *CasyncStore) PutNarInfo(ctx context.Context, outputhash []byte, content
 	return c.memoryStore.PutNarInfo(ctx, outputhash, contents)
 }
 
-type cleanCloser struct {
-	f *os.File
-	io.ReadCloser
-}
-
-func (c *cleanCloser) Read(p []byte) (n int, err error) {
-	return c.f.Read(p)
-}
-
-func (c *cleanCloser) Close() error {
-	defer os.Remove(c.f.Name())
-	return c.f.Close()
-}
-
 func (c *CasyncStore) GetNar(ctx context.Context, narhash []byte) (io.ReadCloser, int64, error) {
 	narhashStr := nixbase32.EncodeToString(narhash)
 	// retrieve .caidx
@@ -100,32 +86,14 @@ func (c *CasyncStore) GetNar(ctx context.Context, narhash []byte) (io.ReadCloser
 		return nil, 0, err
 	}
 
-	tmpFile, err := ioutil.TempFile("", narhashStr+".nar")
-	if err != nil {
-		return nil, 0, err
-	}
-
-	// TODO: this still does all the heavy lifting before returning.
-	// We should move this to the first Read() call.
-
-	tmpFile2 := cleanCloser{f: tmpFile}
-
-	// run AssembleFile into a temporary file
-	_, err = desync.AssembleFile(ctx, tmpFile.Name(), caidx, c.localStore, []desync.Seed{}, c.concurrency, nil)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	// flush and seek
-	err = tmpFile.Sync()
-	if err != nil {
-		return nil, 0, err
-	}
-	_, err = tmpFile.Seek(0, 0)
-	if err != nil {
-		return nil, 0, err
-	}
-	return &tmpFile2, 0, nil
+	return &casyncStoreNarReader{
+		ctx:         ctx,
+		caidx:       caidx,
+		desyncStore: c.localStore,
+		seeds:       []desync.Seed{},
+		concurrency: 1,
+		pb:          nil,
+	}, caidx.Length(), nil
 }
 
 func (c *CasyncStore) PutNar(ctx context.Context, narhash []byte) (io.WriteCloser, error) {

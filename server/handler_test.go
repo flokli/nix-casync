@@ -11,10 +11,11 @@ import (
 	"testing"
 
 	"github.com/flokli/nix-casync/store"
+	"github.com/flokli/nix-casync/store/narstore"
 	"github.com/stretchr/testify/assert"
 )
 
-func mustNewCastore(localStoreDir, localIndexStoreDir string) *store.CasyncStore {
+func mustNewCastore(localStoreDir, localIndexStoreDir string) *narstore.CasyncStore {
 	castrDir, err := ioutil.TempDir("", "castr")
 	if err != nil {
 		panic(err)
@@ -27,7 +28,7 @@ func mustNewCastore(localStoreDir, localIndexStoreDir string) *store.CasyncStore
 	}
 	//defer os.RemoveAll(caIdxDir)
 
-	caStore, err := store.NewCasyncStore(castrDir, caIdxDir)
+	caStore, err := narstore.NewCasyncStore(castrDir, caIdxDir)
 	if err != nil {
 		panic(err)
 	}

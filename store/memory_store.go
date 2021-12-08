@@ -10,6 +10,9 @@ import (
 	"github.com/numtide/go-nix/nixbase32"
 )
 
+// MemoryStore implements both NarStore and NarinfoStore
+var _ BinaryCacheStore = &MemoryStore{}
+
 type MemoryStore struct {
 	narinfo   map[string]*narinfo.NarInfo
 	muNarinfo sync.Mutex

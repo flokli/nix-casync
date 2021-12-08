@@ -1,13 +1,16 @@
-package store
+package narstore
 
 import (
 	"context"
 	"io"
 	"os"
 
+	"github.com/flokli/nix-casync/store"
 	"github.com/folbricht/desync"
 	"github.com/numtide/go-nix/nixbase32"
 )
+
+var _ store.NarStore = &CasyncStore{}
 
 type CasyncStore struct {
 	localStore      desync.WriteStore
@@ -63,7 +66,7 @@ func (c *CasyncStore) GetNar(ctx context.Context, narhash []byte) (io.ReadCloser
 	caidx, err := c.localIndexStore.GetIndex(narhashStr)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, 0, ErrNotFound
+			return nil, 0, store.ErrNotFound
 		}
 		return nil, 0, err
 	}

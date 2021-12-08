@@ -91,6 +91,13 @@ func TestBinaryCacheStores(t *testing.T) {
 					}
 					v.handler.ServeHTTP(rr, req)
 					assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+
+					// expect body to be empty
+					expectedContents, err := io.ReadAll(rr.Result().Body)
+					if err != nil {
+						t.Fatal(err)
+					}
+					assert.Equal(t, []byte{}, expectedContents)
 				})
 
 				// retrieve back the file

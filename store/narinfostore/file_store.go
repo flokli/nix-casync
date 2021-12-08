@@ -2,6 +2,7 @@ package narinfostore
 
 import (
 	"context"
+	"io/ioutil"
 	"os"
 	"path"
 
@@ -47,36 +48,28 @@ func (fs *FileStore) GetNarInfo(ctx context.Context, outputhash []byte) (*narinf
 func (fs *FileStore) PutNarInfo(ctx context.Context, outputhash []byte, contents *narinfo.NarInfo) error {
 	p := fs.NarinfoPath(outputhash)
 
-	f, err := os.Create(p)
+	// create a tempfile, write to it, then move it to where we want it to be
+	// this is to ensure an atomic write/replacement.
+	tmpFile, err := ioutil.TempFile("", "narinfo")
 	if err != nil {
-		return err
-	}
-	// TODO: this should be made transactional
-	// (written to a temporary file that's moved to the final location)
-	// so (re)uploading a .narinfo doesn't expose a empty,
-	// or half-written .narinfo
-	// TODO: also check on whether we remove the file properly in error cases
-	err = f.Truncate(0)
-	if err != nil {
-		defer os.Remove(f.Name())
 		return err
 	}
 
-	_, err = f.Write([]byte(contents.String()))
+	defer os.Remove(tmpFile.Name())
+
+	_, err = tmpFile.Write([]byte(contents.String()))
 	if err != nil {
-		defer os.Remove(f.Name())
 		return err
 	}
 
-	err = f.Sync()
+	err = tmpFile.Sync()
 	if err != nil {
-		defer os.Remove(f.Name())
 		return err
 	}
-	err = f.Close()
+	err = tmpFile.Close()
 	if err != nil {
-		defer os.Remove(f.Name())
 		return err
 	}
-	return nil
+
+	return os.Rename(tmpFile.Name(), p)
 }

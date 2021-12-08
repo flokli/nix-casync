@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/flokli/nix-casync/store"
+	"github.com/flokli/nix-casync/store/narinfostore"
 	"github.com/flokli/nix-casync/store/narstore"
 	"github.com/stretchr/testify/assert"
 )
@@ -35,6 +36,20 @@ func mustNewCastore() store.NarStore {
 	return caStore
 }
 
+func mustNewFileStore() store.NarinfoStore {
+	tmpDir, err := ioutil.TempDir("", "narinfo")
+	if err != nil {
+		panic(err)
+	}
+	//defer os.RemoveAll(tmpDir)
+
+	fs, err := narinfostore.NewFileStore(tmpDir)
+	if err != nil {
+		panic(err)
+	}
+	return fs
+}
+
 var (
 	memoryStore = store.NewMemoryStore()
 
@@ -48,7 +63,7 @@ var (
 			NarStore:     memoryStore,
 		}},
 		{"CasyncStore", &Handler{
-			NarinfoStore: store.NewMemoryStore(),
+			NarinfoStore: mustNewFileStore(),
 			NarStore:     mustNewCastore(),
 		}},
 	}

@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"github.com/folbricht/desync"
@@ -97,62 +96,17 @@ func (c *CasyncStore) GetNar(ctx context.Context, narhash []byte) (io.ReadCloser
 }
 
 func (c *CasyncStore) PutNar(ctx context.Context, narhash []byte) (io.WriteCloser, error) {
-	narhashStr := nixbase32.EncodeToString(narhash)
-	// TODO: can we do better and do this in memory?
-	tempfile, err := ioutil.TempFile("", narhashStr+".nar")
-	if err != nil {
-		return nil, err
-	}
-
 	return &casyncStoreNarWriter{
-		ctx:         ctx,
-		casyncStore: c,
-		tempfile:    tempfile,
-		narhashStr:  narhashStr,
+		name: nixbase32.EncodeToString(narhash),
+
+		ctx: ctx,
+
+		desyncStore:      c.localStore,
+		desyncIndexStore: c.localIndexStore,
+
+		concurrency:         1,
+		chunkSizeMinDefault: c.chunkSizeMinDefault,
+		chunkSizeAvgDefault: c.chunkSizeAvgDefault,
+		chunkSizeMaxDefault: c.chunkSizeMaxDefault,
 	}, nil
-}
-
-type casyncStoreNarWriter struct {
-	ctx         context.Context
-	casyncStore *CasyncStore
-	tempfile    *os.File
-	narhashStr  string
-}
-
-func (csnw *casyncStoreNarWriter) Write(p []byte) (int, error) {
-	return csnw.tempfile.Write(p)
-}
-
-func (csnw *casyncStoreNarWriter) Close() error {
-	// at the end, we want to remove the tempfile
-	defer os.Remove(csnw.tempfile.Name())
-	// flush the tempfile and seek to the start
-	err := csnw.tempfile.Sync()
-	if err != nil {
-		return err
-	}
-	_, err = csnw.tempfile.Seek(0, 0)
-	if err != nil {
-		return err
-	}
-
-	chunker, err := desync.NewChunker(
-		csnw.tempfile,
-		csnw.casyncStore.chunkSizeMinDefault,
-		csnw.casyncStore.chunkSizeAvgDefault,
-		csnw.casyncStore.chunkSizeMaxDefault,
-	)
-	if err != nil {
-		return err
-	}
-	caidx, err := desync.ChunkStream(csnw.ctx, chunker, csnw.casyncStore.localStore, csnw.casyncStore.concurrency)
-	if err != nil {
-		return err
-	}
-
-	err = csnw.casyncStore.localIndexStore.StoreIndex(csnw.narhashStr, caidx)
-	if err != nil {
-		return err
-	}
-	return nil
 }

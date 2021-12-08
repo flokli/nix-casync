@@ -12,7 +12,8 @@ import (
 )
 
 type Handler struct {
-	BinaryCacheStore store.BinaryCacheStore
+	NarStore     store.NarStore
+	NarinfoStore store.NarinfoStore
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +47,7 @@ func (h *Handler) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusBadRequest)
 	}
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
-		narinfo, err := h.BinaryCacheStore.GetNarInfo(r.Context(), outputhash)
+		narinfo, err := h.NarinfoStore.GetNarInfo(r.Context(), outputhash)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if err == store.ErrNotFound {
@@ -71,7 +72,7 @@ func (h *Handler) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusBadRequest)
 			return
 		}
-		err = h.BinaryCacheStore.PutNarInfo(r.Context(), outputhash, ni)
+		err = h.NarinfoStore.PutNarInfo(r.Context(), outputhash, ni)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusInternalServerError)
 			return
@@ -95,7 +96,7 @@ func (h *Handler) handleNar(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 
-		r, size, err := h.BinaryCacheStore.GetNar(r.Context(), narhash)
+		r, size, err := h.NarStore.GetNar(r.Context(), narhash)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if err == store.ErrNotFound {
@@ -114,7 +115,7 @@ func (h *Handler) handleNar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodPut {
-		w2, err := h.BinaryCacheStore.PutNar(r.Context(), narhash)
+		w2, err := h.NarStore.PutNar(r.Context(), narhash)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
 			return

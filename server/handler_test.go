@@ -35,12 +35,21 @@ func mustNewCastore(localStoreDir, localIndexStoreDir string) *store.CasyncStore
 }
 
 var (
+	memoryStore = store.NewMemoryStore()
+
+	// TODO: split handler tests?
 	tt = []struct {
 		storeName string
 		handler   *Handler
 	}{
-		{"MemoryStore", &Handler{BinaryCacheStore: store.NewMemoryStore()}},
-		{"CasyncStore", &Handler{BinaryCacheStore: mustNewCastore("/tmp/castr", "/tmp/caidx")}},
+		{"MemoryStore", &Handler{
+			NarinfoStore: memoryStore,
+			NarStore:     memoryStore,
+		}},
+		{"CasyncStore", &Handler{
+			NarinfoStore: store.NewMemoryStore(),
+			NarStore:     mustNewCastore("/tmp/castr", "/tmp/caidx"),
+		}},
 	}
 
 	// tp describes the test plan.

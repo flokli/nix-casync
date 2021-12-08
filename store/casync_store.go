@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/folbricht/desync"
-	"github.com/numtide/go-nix/nar/narinfo"
 	"github.com/numtide/go-nix/nixbase32"
 )
 
@@ -20,15 +19,11 @@ type CasyncStore struct {
 	chunkSizeMaxDefault uint64
 
 	// TODO: remote store(s)?
-
-	// TODO: how do we store .narinfo files?
-	memoryStore BinaryCacheStore
 }
 
 func NewCasyncStore(localStoreDir, localIndexStoreDir string) (*CasyncStore, error) {
 
 	// TODO: maybe use MultiStoreWithCache?
-
 	err := os.MkdirAll(localStoreDir, os.ModePerm)
 	if err != nil {
 		return nil, err
@@ -59,19 +54,7 @@ func NewCasyncStore(localStoreDir, localIndexStoreDir string) (*CasyncStore, err
 		chunkSizeAvgDefault: 64 * 1024,
 		chunkSizeMinDefault: 64 * 1024 / 4,
 		chunkSizeMaxDefault: 64 * 1024 * 4,
-
-		memoryStore: NewMemoryStore(),
 	}, nil
-}
-
-// TODO: right now we just abuse a memory store for .narinfo files
-// this should be something more persistent.
-func (c *CasyncStore) GetNarInfo(ctx context.Context, outputhash []byte) (*narinfo.NarInfo, error) {
-	return c.memoryStore.GetNarInfo(ctx, outputhash)
-}
-
-func (c *CasyncStore) PutNarInfo(ctx context.Context, outputhash []byte, contents *narinfo.NarInfo) error {
-	return c.memoryStore.PutNarInfo(ctx, outputhash, contents)
 }
 
 func (c *CasyncStore) GetNar(ctx context.Context, narhash []byte) (io.ReadCloser, int64, error) {

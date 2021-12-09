@@ -51,9 +51,9 @@ func (fs *FileStore) GetNarInfo(ctx context.Context, outputhash []byte) (*narinf
 func (fs *FileStore) PutNarInfo(ctx context.Context, outputhash []byte, contents *narinfo.NarInfo) error {
 	p := fs.NarinfoPath(outputhash)
 
-	// create a tempfile, write to it, then move it to where we want it to be
+	// create a tempfile (in the same directory), write to it, then move it to where we want it to be
 	// this is to ensure an atomic write/replacement.
-	tmpFile, err := ioutil.TempFile("", "narinfo")
+	tmpFile, err := ioutil.TempFile(fs.directory, "narinfo")
 	if err != nil {
 		return err
 	}

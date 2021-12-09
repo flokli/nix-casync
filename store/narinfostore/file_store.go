@@ -36,6 +36,9 @@ func (fs *FileStore) GetNarInfo(ctx context.Context, outputhash []byte) (*narinf
 
 	f, err := os.Open(p)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, store.ErrNotFound
+		}
 		return nil, err
 	}
 	ni, err := narinfo.Parse(f)

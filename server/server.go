@@ -4,50 +4,52 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/flokli/nix-casync/store"
 	"github.com/numtide/go-nix/nar/narinfo"
 	"github.com/numtide/go-nix/nixbase32"
+
+	"github.com/go-chi/chi/v5"
 )
 
-type Handler struct {
-	NarStore     store.NarStore
-	NarinfoStore store.NarinfoStore
+type Server struct {
+	Handler *chi.Mux
+
+	narStore     store.NarStore
+	narinfoStore store.NarinfoStore
 }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/nix-cache-info" {
-		h.handleNixCacheInfo(w, r)
-		return
-	}
-	// TODO: should we keep looking at r.URL.Path in downstream methods? Or pass in the path?
-	if strings.HasPrefix(r.URL.Path, "/nar/") {
-		h.handleNar(w, r)
-		return
-	}
-	if len(r.URL.Path) == 41 && strings.HasSuffix(r.URL.Path, ".narinfo") {
-		h.handleNarinfo(w, r)
-		return
-	}
-}
+func NewServer() *Server {
+	r := chi.NewRouter()
+	//r.Use(middleware.Logger)
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("nix-casync"))
+	})
 
-func (h *Handler) handleNixCacheInfo(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+	r.Get("/nix-cache-info", func(w http.ResponseWriter, r *http.Request) {
 		// TODO: make configurable
 		w.Write([]byte("StoreDir: /nix/store\nWantMassQuery: 1\nPriority: 40"))
-		return
-	}
-	http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+	})
+
+	return &Server{Handler: r}
 }
 
-func (h *Handler) handleNarinfo(w http.ResponseWriter, r *http.Request) {
-	outputhash, err := nixbase32.DecodeString(r.URL.Path[1:33])
+func (s *Server) MountNarinfoStore(narinfoStore store.NarinfoStore) {
+	s.narinfoStore = narinfoStore
+	pattern := "/{outputhash:^[" + nixbase32.Alphabet + "]{32}}.narinfo"
+	s.Handler.Get(pattern, s.handleNarinfo)
+	s.Handler.Head(pattern, s.handleNarinfo)
+	s.Handler.Put(pattern, s.handleNarinfo)
+}
+
+func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
+	outputhashStr := chi.URLParam(r, "outputhash")
+	outputhash, err := nixbase32.DecodeString(outputhashStr)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusBadRequest)
 	}
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
-		narinfo, err := h.NarinfoStore.GetNarInfo(r.Context(), outputhash)
+		narinfo, err := s.narinfoStore.GetNarInfo(r.Context(), outputhash)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if err == store.ErrNotFound {
@@ -72,7 +74,7 @@ func (h *Handler) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusBadRequest)
 			return
 		}
-		err = h.NarinfoStore.PutNarInfo(r.Context(), outputhash, ni)
+		err = s.narinfoStore.PutNarInfo(r.Context(), outputhash, ni)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusInternalServerError)
 			return
@@ -82,21 +84,23 @@ func (h *Handler) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 }
 
-func (h *Handler) handleNar(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("%v %v -> %v\n", r.Method, r.URL.Path, r.URL.Path[5:57])
-	narhash, err := nixbase32.DecodeString(r.URL.Path[5:57])
+func (s *Server) MountNarStore(narStore store.NarStore) {
+	s.narStore = narStore
+	pattern := "/nar/{narhash:^[" + nixbase32.Alphabet + "]{52}}.nar"
+	s.Handler.Get(pattern, s.handleNar)
+	s.Handler.Head(pattern, s.handleNar)
+	s.Handler.Put(pattern, s.handleNar)
+}
+
+func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
+	narhashStr := chi.URLParam(r, "narhash")
+	narhash, err := nixbase32.DecodeString(narhashStr)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusBadRequest)
 	}
-	if r.URL.Path[57:] != ".nar" {
-		// only handle .nar files right now
-		http.Error(w, fmt.Sprintf("handle-nar: invalid path extension (%v) - only .nar supported", r.URL.Path[57:]), http.StatusBadRequest)
-		return
-	}
 
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
-
-		r, size, err := h.NarStore.GetNar(r.Context(), narhash)
+		r, size, err := s.narStore.GetNar(r.Context(), narhash)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if err == store.ErrNotFound {
@@ -115,7 +119,7 @@ func (h *Handler) handleNar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodPut {
-		w2, err := h.NarStore.PutNar(r.Context(), narhash)
+		w2, err := s.narStore.PutNar(r.Context(), narhash)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
 			return

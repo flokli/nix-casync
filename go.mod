@@ -3,7 +3,9 @@ module github.com/flokli/nix-casync
 go 1.16
 
 require (
+	cloud.google.com/go/storage v1.10.0
 	github.com/alecthomas/kong v0.2.16
+	github.com/aws/aws-sdk-go v1.33.13
 	github.com/folbricht/desync v0.9.0
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/numtide/go-nix v0.0.0-20211209101320-04a3fc69acf4

@@ -1,4 +1,4 @@
-package libstore
+package fetcher
 
 import (
 	"context"
@@ -9,20 +9,20 @@ import (
 	"path"
 )
 
-var _ BinaryCacheReader = HTTPBinaryCacheStore{}
+var _ BinaryCacheReader = HTTPFetcher{}
 
-// HTTPBinaryCacheStore ...
-type HTTPBinaryCacheStore struct {
+// HTTPFetcher ...
+type HTTPFetcher struct {
 	url *url.URL // assumes the URI doesn't end with '/'
 }
 
-// NewHTTPBinaryCacheStore ---
-func NewHTTPBinaryCacheStore(u *url.URL) HTTPBinaryCacheStore {
-	return HTTPBinaryCacheStore{u}
+// NewHTTPFetcher ---
+func NewHTTPFetcher(u *url.URL) HTTPFetcher {
+	return HTTPFetcher{u}
 }
 
 // getURL composes the path with the prefix to return an URL.
-func (c HTTPBinaryCacheStore) getURL(p string) string {
+func (c HTTPFetcher) getURL(p string) string {
 	newPath := path.Join(c.url.Path, p)
 	x, _ := c.url.Parse(newPath)
 	return x.String()
@@ -30,7 +30,7 @@ func (c HTTPBinaryCacheStore) getURL(p string) string {
 
 // FileExists returns true if the file is already in the store.
 // err is used for transient issues like networking errors.
-func (c HTTPBinaryCacheStore) FileExists(ctx context.Context, path string) (bool, error) {
+func (c HTTPFetcher) FileExists(ctx context.Context, path string) (bool, error) {
 	resp, err := http.Head(c.getURL(path))
 	if err != nil {
 		return false, err
@@ -39,7 +39,7 @@ func (c HTTPBinaryCacheStore) FileExists(ctx context.Context, path string) (bool
 }
 
 // GetFile returns a file stream from the store if the file exists
-func (c HTTPBinaryCacheStore) GetFile(ctx context.Context, path string) (io.ReadCloser, error) {
+func (c HTTPFetcher) GetFile(ctx context.Context, path string) (io.ReadCloser, error) {
 	resp, err := http.Get(c.getURL(path))
 	if err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func (c HTTPBinaryCacheStore) GetFile(ctx context.Context, path string) (io.Read
 	return resp.Body, nil
 }
 
-// URL returns the store URI
-func (c HTTPBinaryCacheStore) URL() string {
+// URL returns the fetcher URI
+func (c HTTPFetcher) URL() string {
 	return c.url.String()
 }

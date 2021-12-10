@@ -1,4 +1,4 @@
-package libstore
+package fetcher
 
 import (
 	"context"
@@ -14,13 +14,13 @@ import (
 	"net/url"
 )
 
-type S3BinaryCacheStore struct {
+type S3Fetcher struct {
 	url        *url.URL
 	BucketName string
 	Client     *s3.S3
 }
 
-func NewS3BinaryCacheStore(u *url.URL) (*S3BinaryCacheStore, error) {
+func NewS3Fetcher(u *url.URL) (*S3BinaryCacheStore, error) {
 	scheme := u.Query().Get("scheme")
 	profile := u.Query().Get("profile")
 	region := u.Query().Get("region")
@@ -39,7 +39,7 @@ func NewS3BinaryCacheStore(u *url.URL) (*S3BinaryCacheStore, error) {
 	case "https", "":
 		disableSSL = false
 	default:
-		return &S3BinaryCacheStore{}, fmt.Errorf("Unsupported scheme %s", scheme)
+		return &S3Fetcher{}, fmt.Errorf("Unsupported scheme %s", scheme)
 	}
 
 	var sess = session.Must(session.NewSessionWithOptions(session.Options{
@@ -57,14 +57,14 @@ func NewS3BinaryCacheStore(u *url.URL) (*S3BinaryCacheStore, error) {
 	}))
 
 	svc := s3.New(sess)
-	return &S3BinaryCacheStore{
+	return &S3Fetcher{
 		url:        u,
 		BucketName: bucketName,
 		Client:     svc,
 	}, nil
 }
 
-func (c *S3BinaryCacheStore) FileExists(ctx context.Context, path string) (bool, error) {
+func (c *S3Fetcher) FileExists(ctx context.Context, path string) (bool, error) {
 	_, err := c.GetFile(ctx, path)
 	aerr, ok := err.(awserr.Error)
 	if ok {
@@ -79,7 +79,7 @@ func (c *S3BinaryCacheStore) FileExists(ctx context.Context, path string) (bool,
 	}
 }
 
-func (c *S3BinaryCacheStore) GetFile(ctx context.Context, path string) (io.ReadCloser, error) {
+func (c *S3Fetcher) GetFile(ctx context.Context, path string) (io.ReadCloser, error) {
 	input := &s3.GetObjectInput{
 		Bucket: aws.String(c.BucketName),
 		Key:    aws.String(path),
@@ -93,7 +93,7 @@ func (c *S3BinaryCacheStore) GetFile(ctx context.Context, path string) (io.ReadC
 	return obj.Body, nil // for now we return Object data with type blob
 }
 
-// URL returns the store URI
-func (c S3BinaryCacheStore) URL() string {
+// URL returns the fetcher URI
+func (c S3Fetcher) URL() string {
 	return c.url.String()
 }

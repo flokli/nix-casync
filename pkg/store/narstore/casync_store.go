@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/flokli/nix-casync/store"
+	"github.com/flokli/nix-casync/pkg/store"
 	"github.com/folbricht/desync"
 	"github.com/numtide/go-nix/nixbase32"
 )

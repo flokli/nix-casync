@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
-	"github.com/flokli/nix-casync/server"
-	"github.com/flokli/nix-casync/store/narinfostore"
-	"github.com/flokli/nix-casync/store/narstore"
+	"github.com/flokli/nix-casync/pkg/server"
+	"github.com/flokli/nix-casync/pkg/store/narinfostore"
+	"github.com/flokli/nix-casync/pkg/store/narstore"
 	log "github.com/sirupsen/logrus"
 )
 

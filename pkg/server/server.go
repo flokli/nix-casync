@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/flokli/nix-casync/store"
+	"github.com/flokli/nix-casync/pkg/store"
 	"github.com/numtide/go-nix/nar/narinfo"
 	"github.com/numtide/go-nix/nixbase32"
 

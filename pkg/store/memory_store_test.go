@@ -53,7 +53,7 @@ func TestNar(t *testing.T) {
 	narhash := nixbase32.MustDecodeString("0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd")
 
 	// Read a .nar file
-	r, err := os.Open("../test/compression_none/nar/0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd.nar")
+	r, err := os.Open("../../test/compression_none/nar/0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd.nar")
 	if err != nil {
 		t.Fatal()
 	}
@@ -74,7 +74,7 @@ func TestNar(t *testing.T) {
 	}
 
 	// Read the test data in again
-	expectedR, err := os.Open("../test/compression_none/nar/0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd.nar")
+	expectedR, err := os.Open("../../test/compression_none/nar/0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd.nar")
 	if err != nil {
 		t.Fatal()
 	}

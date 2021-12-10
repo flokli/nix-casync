@@ -26,13 +26,13 @@ func NewFileStore(directory string) (*FileStore, error) {
 	return &FileStore{directory: directory}, nil
 }
 
-// NarinfoPath constructs the name of the .narinfo file
-func (fs *FileStore) NarinfoPath(outputhash []byte) string {
+// narinfoPath constructs the name of the .narinfo file
+func (fs *FileStore) narinfoPath(outputhash []byte) string {
 	return path.Join(fs.directory, nixbase32.EncodeToString(outputhash)+".narinfo")
 }
 
 func (fs *FileStore) GetNarInfo(ctx context.Context, outputhash []byte) (*narinfo.NarInfo, error) {
-	p := fs.NarinfoPath(outputhash)
+	p := fs.narinfoPath(outputhash)
 
 	f, err := os.Open(p)
 	if err != nil {
@@ -49,7 +49,7 @@ func (fs *FileStore) GetNarInfo(ctx context.Context, outputhash []byte) (*narinf
 }
 
 func (fs *FileStore) PutNarInfo(ctx context.Context, outputhash []byte, contents *narinfo.NarInfo) error {
-	p := fs.NarinfoPath(outputhash)
+	p := fs.narinfoPath(outputhash)
 
 	// create a tempfile (in the same directory), write to it, then move it to where we want it to be
 	// this is to ensure an atomic write/replacement.

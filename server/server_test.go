@@ -82,7 +82,7 @@ func testHandlerNar(t *testing.T, narStore store.NarStore) {
 
 	path := "/nar/0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd.nar"
 	// read in the text fixture
-	tdr := readTestData("../testdata/compression_none" + path)
+	tdr := readTestData("../test/compression_none" + path)
 	defer tdr.Close()
 
 	t.Run("PUT .nar", func(t *testing.T) {
@@ -147,7 +147,7 @@ func testHandlerNarinfo(t *testing.T, narinfoStore store.NarinfoStore) {
 
 	path := "/dr76fsw7d6ws3pymafx0w0sn4rzbw7c9.narinfo"
 	// read in the text fixture
-	tdr := readTestData("../testdata/compression_none" + path)
+	tdr := readTestData("../test/compression_none" + path)
 	defer tdr.Close()
 
 	t.Run("PUT .narinfo", func(t *testing.T) {

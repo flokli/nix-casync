@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/flokli/nix-casync/pkg/server/compression"
 	"github.com/flokli/nix-casync/pkg/store"
 	"github.com/numtide/go-nix/nar/narinfo"
 	"github.com/numtide/go-nix/nixbase32"
@@ -95,10 +96,28 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) MountNarStore(narStore store.NarStore) {
 	s.narStore = narStore
-	pattern := "/nar/{narhash:^[" + nixbase32.Alphabet + "]{52}}.nar"
-	s.Handler.Get(pattern, s.handleNar)
-	s.Handler.Head(pattern, s.handleNar)
-	s.Handler.Put(pattern, s.handleNar)
+	patternPlain := "/nar/{narhash:^[" + nixbase32.Alphabet + "]{52}$}.nar"
+	patternCompressed := patternPlain + `{compressionSuffix:^(\.\w+)$}`
+
+	// We only serve plain Narfiles
+	s.Handler.Get(patternPlain, s.handleNar)
+	s.Handler.Head(patternPlain, s.handleNar)
+
+	// When Nix uploads compressed paths (if compression=none is not set),
+	// we simply can't know if a file exists or not.
+	// Nix uploads /nar/$filehash.nar.$compressionType, not /nar/$narhash.nar.$compressionType,
+	// but we content-address the decompressed contents.
+	// Register a dumb HEAD handler that returns a 404 for all compressed paths.
+	// This will cause Nix to unnecessarily upload Narfiles multiple times.
+	// It's not as bad as it sounds, as this only affects multiple Narinfo files
+	// referencing the same Narfile.
+	// Nix first checks the Narinfo files for existence, and doesn't update the Narfile.
+	s.Handler.Head(patternCompressed, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Can't know for compressed Narfiles", http.StatusNotFound)
+	})
+
+	s.Handler.Put(patternPlain, s.handleNar)
+	s.Handler.Put(patternCompressed, s.handleNar)
 }
 
 func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
@@ -127,18 +146,24 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodPut {
-		w2, err := s.narStore.PutNar(r.Context())
+		narWriter, err := s.narStore.PutNar(r.Context())
 		if err != nil {
 			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		// copy the body of the request into w2
-		_, err = io.Copy(w2, r.Body)
+		// There might be suffixes indicating compression, wrap the request body via the generic decompressor
+		reader, err := compression.NewDecompressorBySuffix(r.Body, chi.URLParam(r, "compressionSuffix"))
 		if err != nil {
 			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
 		}
-		err = w2.Close()
+
+		// copy the body of the request into narwriter
+		_, err = io.Copy(narWriter, reader)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
+		}
+		err = narWriter.Close()
 		if err != nil {
 			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
 		}

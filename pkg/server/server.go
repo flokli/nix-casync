@@ -102,13 +102,12 @@ func (s *Server) MountNarStore(narStore store.NarStore) {
 }
 
 func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
-	narhashStr := chi.URLParam(r, "narhash")
-	narhash, err := nixbase32.DecodeString(narhashStr)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusBadRequest)
-	}
-
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		narhashStr := chi.URLParam(r, "narhash")
+		narhash, err := nixbase32.DecodeString(narhashStr)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusBadRequest)
+		}
 		r, size, err := s.narStore.GetNar(r.Context(), narhash)
 		if err != nil {
 			status := http.StatusInternalServerError

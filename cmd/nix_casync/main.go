@@ -11,6 +11,7 @@ import (
 	"github.com/flokli/nix-casync/pkg/server"
 	"github.com/flokli/nix-casync/pkg/store/narinfostore"
 	"github.com/flokli/nix-casync/pkg/store/narstore"
+	"github.com/go-chi/chi/middleware"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -60,7 +61,7 @@ func main() {
 		log.Printf("Starting Server at %v", CLI.Serve.ListenAddr)
 		srv := &http.Server{
 			Addr:         CLI.Serve.ListenAddr,
-			Handler:      s.Handler,
+			Handler:      middleware.Logger(s.Handler),
 			ReadTimeout:  50 * time.Second,
 			WriteTimeout: 100 * time.Second,
 			IdleTimeout:  150 * time.Second,

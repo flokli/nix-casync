@@ -60,8 +60,23 @@ func (csnw *casyncStoreNarWriter) Close() error {
 	// at the end, we want to remove the tempfile
 	defer os.Remove(csnw.f.Name())
 
+	// calculate how the file will be called
+	indexName := nixbase32.EncodeToString(csnw.Sha256Sum()) + ".nar"
+
+	// check if that same file has already been uploaded.
+	_, err := csnw.desyncIndexStore.GetIndex(indexName)
+
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	if err == nil {
+		// if the file already exists in the index, we're done.
+		return nil
+	}
+
 	// flush the tempfile and seek to the start
-	err := csnw.f.Sync()
+	err = csnw.f.Sync()
 	if err != nil {
 		return err
 	}
@@ -93,7 +108,7 @@ func (csnw *casyncStoreNarWriter) Close() error {
 
 	// upload index into the index store
 	// name it after the narhash
-	err = csnw.desyncIndexStore.StoreIndex(nixbase32.EncodeToString(csnw.Sha256Sum())+".nar", caidx)
+	err = csnw.desyncIndexStore.StoreIndex(indexName, caidx)
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package narstore
 
 import (
 	"context"
+	"crypto/sha256"
 	"io"
 	"os"
 
@@ -71,7 +72,7 @@ func (c *CasyncStore) Close() error {
 func (c *CasyncStore) GetNar(ctx context.Context, narhash []byte) (io.ReadCloser, int64, error) {
 	narhashStr := nixbase32.EncodeToString(narhash)
 	// retrieve .caidx
-	caidx, err := c.localIndexStore.GetIndex(narhashStr)
+	caidx, err := c.localIndexStore.GetIndex(narhashStr + ".nar")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, 0, store.ErrNotFound
@@ -89,10 +90,8 @@ func (c *CasyncStore) GetNar(ctx context.Context, narhash []byte) (io.ReadCloser
 	}, caidx.Length(), nil
 }
 
-func (c *CasyncStore) PutNar(ctx context.Context, narhash []byte) (io.WriteCloser, error) {
+func (c *CasyncStore) PutNar(ctx context.Context) (store.WriteCloseHasher, error) {
 	return &casyncStoreNarWriter{
-		name: nixbase32.EncodeToString(narhash),
-
 		ctx: ctx,
 
 		desyncStore:      c.localStore,
@@ -102,5 +101,7 @@ func (c *CasyncStore) PutNar(ctx context.Context, narhash []byte) (io.WriteClose
 		chunkSizeMinDefault: c.chunkSizeMinDefault,
 		chunkSizeAvgDefault: c.chunkSizeAvgDefault,
 		chunkSizeMaxDefault: c.chunkSizeMaxDefault,
+
+		hash: sha256.New(),
 	}, nil
 }

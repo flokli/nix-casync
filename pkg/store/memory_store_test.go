@@ -56,22 +56,27 @@ func TestNar(t *testing.T) {
 	})
 	ctx := context.Background()
 
-	narhash := nixbase32.MustDecodeString("0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd")
+	narhashStr := "0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd"
+	narhash := nixbase32.MustDecodeString(narhashStr)
 
 	// Read a .nar file
-	r, err := os.Open("../../test/compression_none/nar/0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd.nar")
+	r, err := os.Open("../../test/compression_none/nar/" + narhashStr + ".nar")
 	if err != nil {
 		t.Fatal()
 	}
 	defer r.Close()
 
-	w, err := bcs.PutNar(ctx, narhash)
+	w, err := bcs.PutNar(ctx)
 	if err != nil {
 		t.Fatal()
 	}
 
 	io.Copy(w, r)
 	w.Close()
+	assert.Equal(t,
+		narhash,
+		w.Sha256Sum(),
+	)
 
 	// Get it back
 	r2, size, err := bcs.GetNar(ctx, narhash)
@@ -80,7 +85,7 @@ func TestNar(t *testing.T) {
 	}
 
 	// Read the test data in again
-	expectedR, err := os.Open("../../test/compression_none/nar/0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd.nar")
+	expectedR, err := os.Open("../../test/compression_none/nar/" + narhashStr + ".nar")
 	if err != nil {
 		t.Fatal()
 	}

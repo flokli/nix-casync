@@ -128,7 +128,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodPut {
-		w2, err := s.narStore.PutNar(r.Context(), narhash)
+		w2, err := s.narStore.PutNar(r.Context())
 		if err != nil {
 			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
 			return

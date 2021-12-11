@@ -3,6 +3,8 @@ package store
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"hash"
 	"io"
 	"sync"
 
@@ -56,9 +58,9 @@ func (m *MemoryStore) GetNar(_ctx context.Context, narhash []byte) (io.ReadClose
 	return nil, 0, ErrNotFound
 }
 
-func (m *MemoryStore) PutNar(ctx context.Context, narhash []byte) (io.WriteCloser, error) {
+func (m *MemoryStore) PutNar(ctx context.Context) (WriteCloseHasher, error) {
 	return &memoryStoreNarWriter{
-		narhash:     narhash,
+		hash:        sha256.New(),
 		memoryStore: m,
 	}, nil
 }
@@ -68,22 +70,27 @@ func (m *MemoryStore) Close() error {
 }
 
 type memoryStoreNarWriter struct {
-	narhash     []byte
 	memoryStore *MemoryStore
 	contents    []byte
+	hash        hash.Hash
 }
 
 func (msnw *memoryStoreNarWriter) Write(p []byte) (n int, err error) {
 	msnw.contents = append(msnw.contents, p...)
+	msnw.hash.Write(p)
 	return len(p), nil
 }
 
 func (msnw *memoryStoreNarWriter) Close() error {
-	// TODO: verify hash
+	// retrieve hash
+	narhash := msnw.hash.Sum([]byte{})
 	// TODO: add handling to not call close two times
-	// TODO: what to do if it already exists?
 	msnw.memoryStore.muNar.Lock()
-	msnw.memoryStore.nar[nixbase32.EncodeToString(msnw.narhash)] = msnw.contents
+	msnw.memoryStore.nar[nixbase32.EncodeToString(narhash)] = msnw.contents
 	msnw.memoryStore.muNar.Unlock()
 	return nil
+}
+
+func (msnw *memoryStoreNarWriter) Sha256Sum() []byte {
+	return msnw.hash.Sum([]byte{})
 }

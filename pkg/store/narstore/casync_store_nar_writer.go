@@ -2,11 +2,13 @@ package narstore
 
 import (
 	"context"
+	"hash"
 	"io"
 	"io/ioutil"
 	"os"
 
 	"github.com/folbricht/desync"
+	"github.com/numtide/go-nix/nixbase32"
 )
 
 // casyncStoreNarWriter provides a io.WriteCloser interface
@@ -16,8 +18,6 @@ import (
 // the index added to the index store, and the chunks added to the chunk store.
 type casyncStoreNarWriter struct {
 	io.WriteCloser
-
-	name string
 
 	ctx context.Context
 
@@ -29,13 +29,14 @@ type casyncStoreNarWriter struct {
 	chunkSizeAvgDefault uint64
 	chunkSizeMaxDefault uint64
 
-	f *os.File
+	f    *os.File
+	hash hash.Hash
 }
 
 // init needs to be called by everything writing
 // It ensures the tempfile is set up
 func (csnw *casyncStoreNarWriter) init() error {
-	tmpFile, err := ioutil.TempFile("", csnw.name+".nar")
+	tmpFile, err := ioutil.TempFile("", ".nar")
 	if err != nil {
 		return err
 	}
@@ -51,6 +52,7 @@ func (csnw *casyncStoreNarWriter) Write(p []byte) (int, error) {
 			return 0, err
 		}
 	}
+	csnw.hash.Write(p)
 	return csnw.f.Write(p)
 }
 
@@ -90,9 +92,14 @@ func (csnw *casyncStoreNarWriter) Close() error {
 	}
 
 	// upload index into the index store
-	err = csnw.desyncIndexStore.StoreIndex(csnw.name, caidx)
+	// name it after the narhash
+	err = csnw.desyncIndexStore.StoreIndex(nixbase32.EncodeToString(csnw.Sha256Sum())+".nar", caidx)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (csnw *casyncStoreNarWriter) Sha256Sum() []byte {
+	return csnw.hash.Sum([]byte{})
 }

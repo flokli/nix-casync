@@ -15,11 +15,16 @@ type NarinfoStore interface {
 	io.Closer
 }
 
+// WriteWriteCloserHashSum is a io.WriteCloser, which you can ask for a checksum
+type WriteCloseHasher interface {
+	io.WriteCloser
+	Sha256Sum() []byte
+}
+
 // NarStore can store and retrieve .nar files
 type NarStore interface {
 	GetNar(ctx context.Context, narhash []byte) (io.ReadCloser, int64, error)
-	// TODO: add validation for narhash to match content?
-	PutNar(ctx context.Context, narhash []byte) (io.WriteCloser, error)
+	PutNar(ctx context.Context) (WriteCloseHasher, error)
 	io.Closer
 }
 

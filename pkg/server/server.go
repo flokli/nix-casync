@@ -7,6 +7,7 @@ import (
 
 	"github.com/flokli/nix-casync/pkg/server/compression"
 	"github.com/flokli/nix-casync/pkg/store"
+	"github.com/numtide/go-nix/hash"
 	"github.com/numtide/go-nix/nar/narinfo"
 	"github.com/numtide/go-nix/nixbase32"
 
@@ -84,6 +85,18 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusBadRequest)
 			return
 		}
+
+		// rewrite narinfo, as we undo all compression and serve them from /nar/$narhash.nar
+		ni.Compression = "none"
+		ni.FileHash = ni.NarHash
+		ni.FileSize = ni.NarSize
+		ni.URL = "nar/" + nixbase32.EncodeToString(ni.NarHash.Digest) + ".nar"
+
+		// TODO: can this ever happen?
+		if ni.NarHash.HashType != hash.HashTypeSha256 {
+			http.Error(w, fmt.Sprintf("handle-narinfo: unexpected hashtype: %v", ni.NarHash), http.StatusBadRequest)
+		}
+
 		err = s.narinfoStore.PutNarInfo(r.Context(), outputhash, ni)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusInternalServerError)

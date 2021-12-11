@@ -13,6 +13,10 @@ require (
 	github.com/numtide/go-nix v0.0.0-20211213202258-b19b10aa1495
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/sirupsen/logrus v1.8.1
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/ulikunitz/xz v0.5.10
+	github.com/uptrace/bun v1.0.19
+	github.com/uptrace/bun/dialect/sqlitedialect v1.0.19
+	github.com/uptrace/bun/driver/sqliteshim v1.0.19
+	github.com/uptrace/bun/extra/bundebug v1.0.19 // indirect
 )

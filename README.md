@@ -15,3 +15,13 @@ $ go build ./cmd/nix_casync/
 ```sh
 ./nix_casync serve --cache-path=path/to/local
 ```
+
+### Uploading store paths
+```
+nix copy \
+  --extra-experimental-features nix-command \
+  --to "http://localhost:9000?compression=none" $storePath
+```
+
+Note as of now, uploads need to happen uncompressed, as the `.nar` files are
+chunked without compression, and the individual chunks compressed internally.

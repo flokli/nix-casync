@@ -17,6 +17,7 @@ type Server struct {
 
 	narStore     store.NarStore
 	narinfoStore store.NarinfoStore
+	io.Closer
 }
 
 func NewServer() *Server {
@@ -32,6 +33,14 @@ func NewServer() *Server {
 	})
 
 	return &Server{Handler: r}
+}
+
+func (s *Server) Close() error {
+	err := s.narStore.Close()
+	if err != nil {
+		return err
+	}
+	return s.narinfoStore.Close()
 }
 
 func (s *Server) MountNarinfoStore(narinfoStore store.NarinfoStore) {

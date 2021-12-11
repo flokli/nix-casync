@@ -2,6 +2,8 @@ package main
 
 import (
 	"net/http"
+	"os"
+	"os/signal"
 	"path"
 	"time"
 
@@ -26,6 +28,17 @@ func main() {
 	switch ctx.Command() {
 	case "serve":
 		s := server.NewServer()
+		defer s.Close()
+
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		go func() {
+			for _ = range c {
+				log.Info("Received Signal, shutting down…")
+				s.Close()
+				os.Exit(1)
+			}
+		}()
 
 		// initialize casync store
 		castrPath := path.Join(CLI.Serve.CachePath, "castr")

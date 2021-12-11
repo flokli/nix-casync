@@ -63,6 +63,10 @@ func (m *MemoryStore) PutNar(ctx context.Context, narhash []byte) (io.WriteClose
 	}, nil
 }
 
+func (m *MemoryStore) Close() error {
+	return nil
+}
+
 type memoryStoreNarWriter struct {
 	narhash     []byte
 	memoryStore *MemoryStore

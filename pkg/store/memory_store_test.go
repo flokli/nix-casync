@@ -31,6 +31,9 @@ var (
 
 func TestNarInfo(t *testing.T) {
 	bcs := NewMemoryStore()
+	t.Cleanup(func() {
+		bcs.Close()
+	})
 	ctx := context.Background()
 
 	hash := nixbase32.MustDecodeString("dr76fsw7d6ws3pymafx0w0sn4rzbw7c9")
@@ -48,6 +51,9 @@ func TestNarInfo(t *testing.T) {
 
 func TestNar(t *testing.T) {
 	bcs := NewMemoryStore()
+	t.Cleanup(func() {
+		bcs.Close()
+	})
 	ctx := context.Background()
 
 	narhash := nixbase32.MustDecodeString("0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd")

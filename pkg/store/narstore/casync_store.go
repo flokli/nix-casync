@@ -60,6 +60,14 @@ func NewCasyncStore(localStoreDir, localIndexStoreDir string) (*CasyncStore, err
 	}, nil
 }
 
+func (c *CasyncStore) Close() error {
+	err := c.localStore.Close()
+	if err != nil {
+		return err
+	}
+	return c.localIndexStore.Close()
+}
+
 func (c *CasyncStore) GetNar(ctx context.Context, narhash []byte) (io.ReadCloser, int64, error) {
 	narhashStr := nixbase32.EncodeToString(narhash)
 	// retrieve .caidx

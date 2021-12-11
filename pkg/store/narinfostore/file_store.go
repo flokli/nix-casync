@@ -76,3 +76,7 @@ func (fs *FileStore) PutNarInfo(ctx context.Context, outputhash []byte, contents
 
 	return os.Rename(tmpFile.Name(), p)
 }
+
+func (fs *FileStore) Close() error {
+	return nil
+}

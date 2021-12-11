@@ -39,6 +39,9 @@ func TestCasyncStore(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+	t.Cleanup(func() {
+		caStore.Close()
+	})
 
 	testHandlerNar(t, caStore)
 }
@@ -56,11 +59,17 @@ func TestNarinfoFilestore(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+	t.Cleanup(func() {
+		narinfoFilestore.Close()
+	})
 	testHandlerNarinfo(t, narinfoFilestore)
 }
 
 func TestMemoryStore(t *testing.T) {
 	memoryStore := store.NewMemoryStore()
+	t.Cleanup(func() {
+		memoryStore.Close()
+	})
 	testHandlerNar(t, memoryStore)
 	testHandlerNarinfo(t, memoryStore)
 }

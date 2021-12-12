@@ -1,17 +1,15 @@
-package narstore
+package store
 
 import (
 	"context"
-	"crypto/sha256"
 	"io"
 	"os"
 
-	"github.com/flokli/nix-casync/pkg/store"
 	"github.com/folbricht/desync"
 	"github.com/numtide/go-nix/nixbase32"
 )
 
-var _ store.NarStore = &CasyncStore{}
+var _ NarStore = &CasyncStore{}
 
 type CasyncStore struct {
 	localStore      desync.WriteStore
@@ -75,33 +73,35 @@ func (c *CasyncStore) GetNar(ctx context.Context, narhash []byte) (io.ReadCloser
 	caidx, err := c.localIndexStore.GetIndex(narhashStr + ".nar")
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, 0, store.ErrNotFound
+			return nil, 0, ErrNotFound
 		}
 		return nil, 0, err
 	}
 
-	return &casyncStoreNarReader{
-		ctx:         ctx,
-		caidx:       caidx,
-		desyncStore: c.localStore,
-		seeds:       []desync.Seed{},
-		concurrency: 1,
-		pb:          nil,
-	}, caidx.Length(), nil
+	csnr, err := NewCasyncStoreNarReader(
+		ctx,
+		caidx,
+		c.localStore,
+		[]desync.Seed{},
+		1,
+		nil,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	return csnr, caidx.Length(), nil
 }
 
-func (c *CasyncStore) PutNar(ctx context.Context) (store.WriteCloseHasher, error) {
-	return &casyncStoreNarWriter{
-		ctx: ctx,
+func (c *CasyncStore) PutNar(ctx context.Context) (WriteCloseHasher, error) {
+	return NewCasyncStoreNarWriter(
+		ctx,
 
-		desyncStore:      c.localStore,
-		desyncIndexStore: c.localIndexStore,
+		c.localStore,
+		c.localIndexStore,
 
-		concurrency:         1,
-		chunkSizeMinDefault: c.chunkSizeMinDefault,
-		chunkSizeAvgDefault: c.chunkSizeAvgDefault,
-		chunkSizeMaxDefault: c.chunkSizeMaxDefault,
-
-		hash: sha256.New(),
-	}, nil
+		c.concurrency,
+		c.chunkSizeMinDefault,
+		c.chunkSizeAvgDefault,
+		c.chunkSizeMaxDefault,
+	)
 }

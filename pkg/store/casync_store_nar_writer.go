@@ -1,7 +1,8 @@
-package narstore
+package store
 
 import (
 	"context"
+	"crypto/sha256"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -33,25 +34,39 @@ type casyncStoreNarWriter struct {
 	hash hash.Hash
 }
 
-// init needs to be called by everything writing
-// It ensures the tempfile is set up
-func (csnw *casyncStoreNarWriter) init() error {
+// NewCasyncStoreNarWriter returns a properly initialized casyncStoreNarWriter
+func NewCasyncStoreNarWriter(
+	ctx context.Context,
+	desyncStore desync.WriteStore,
+	desyncIndexStore desync.IndexWriteStore,
+	concurrency int,
+	chunkSizeMinDefault uint64,
+	chunkSizeAvgDefault uint64,
+	chunkSizeMaxDefault uint64,
+) (*casyncStoreNarWriter, error) {
 	tmpFile, err := ioutil.TempFile("", ".nar")
 	if err != nil {
-		return err
+		return nil, err
 	}
-	// Cleanup is handled in csnw.Close(), or whenever there's an error during init
-	csnw.f = tmpFile
-	return nil
+	// Cleanup is handled in Close()
+
+	return &casyncStoreNarWriter{
+		ctx: ctx,
+
+		desyncStore:      desyncStore,
+		desyncIndexStore: desyncIndexStore,
+
+		concurrency:         concurrency,
+		chunkSizeMinDefault: chunkSizeMinDefault,
+		chunkSizeAvgDefault: chunkSizeAvgDefault,
+		chunkSizeMaxDefault: chunkSizeMaxDefault,
+
+		f:    tmpFile,
+		hash: sha256.New(),
+	}, nil
 }
 
 func (csnw *casyncStoreNarWriter) Write(p []byte) (int, error) {
-	if csnw.f == nil {
-		err := csnw.init()
-		if err != nil {
-			return 0, err
-		}
-	}
 	csnw.hash.Write(p)
 	return csnw.f.Write(p)
 }
@@ -60,8 +75,23 @@ func (csnw *casyncStoreNarWriter) Close() error {
 	// at the end, we want to remove the tempfile
 	defer os.Remove(csnw.f.Name())
 
+	// calculate how the file will be called
+	indexName := nixbase32.EncodeToString(csnw.Sha256Sum()) + ".nar"
+
+	// check if that same file has already been uploaded.
+	_, err := csnw.desyncIndexStore.GetIndex(indexName)
+
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	if err == nil {
+		// if the file already exists in the index, we're done.
+		return nil
+	}
+
 	// flush the tempfile and seek to the start
-	err := csnw.f.Sync()
+	err = csnw.f.Sync()
 	if err != nil {
 		return err
 	}
@@ -93,7 +123,7 @@ func (csnw *casyncStoreNarWriter) Close() error {
 
 	// upload index into the index store
 	// name it after the narhash
-	err = csnw.desyncIndexStore.StoreIndex(nixbase32.EncodeToString(csnw.Sha256Sum())+".nar", caidx)
+	err = csnw.desyncIndexStore.StoreIndex(indexName, caidx)
 	if err != nil {
 		return err
 	}

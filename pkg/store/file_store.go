@@ -1,4 +1,4 @@
-package narinfostore
+package store
 
 import (
 	"context"
@@ -6,13 +6,12 @@ import (
 	"os"
 	"path"
 
-	"github.com/flokli/nix-casync/pkg/store"
 	"github.com/numtide/go-nix/nar/narinfo"
 	"github.com/numtide/go-nix/nixbase32"
 )
 
 // FileStore implements NarinfoStore
-var _ store.NarinfoStore = &FileStore{}
+var _ NarinfoStore = &FileStore{}
 
 type FileStore struct {
 	directory string
@@ -37,7 +36,7 @@ func (fs *FileStore) GetNarInfo(ctx context.Context, outputhash []byte) (*narinf
 	f, err := os.Open(p)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, store.ErrNotFound
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}

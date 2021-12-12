@@ -9,8 +9,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/flokli/nix-casync/pkg/server"
-	"github.com/flokli/nix-casync/pkg/store/narinfostore"
-	"github.com/flokli/nix-casync/pkg/store/narstore"
+	"github.com/flokli/nix-casync/pkg/store"
 	"github.com/go-chi/chi/middleware"
 	log "github.com/sirupsen/logrus"
 )
@@ -44,7 +43,7 @@ func main() {
 		// initialize casync store
 		castrPath := path.Join(CLI.Serve.CachePath, "castr")
 		caibxPath := path.Join(CLI.Serve.CachePath, "caibx")
-		casyncStore, err := narstore.NewCasyncStore(castrPath, caibxPath) // TODO: ask for more parameters?
+		casyncStore, err := store.NewCasyncStore(castrPath, caibxPath) // TODO: ask for more parameters?
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -52,7 +51,7 @@ func main() {
 
 		// initialize narinfo store
 		narinfoPath := path.Join(CLI.Serve.CachePath, "narinfo")
-		narinfoStore, err := narinfostore.NewFileStore(narinfoPath)
+		narinfoStore, err := store.NewFileStore(narinfoPath)
 		if err != nil {
 			log.Fatal(err)
 		}

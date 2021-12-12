@@ -1,4 +1,4 @@
-package narstore
+package store
 
 import (
 	"context"

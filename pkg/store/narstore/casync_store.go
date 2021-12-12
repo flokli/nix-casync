@@ -2,7 +2,6 @@ package narstore
 
 import (
 	"context"
-	"crypto/sha256"
 	"io"
 	"os"
 
@@ -80,28 +79,30 @@ func (c *CasyncStore) GetNar(ctx context.Context, narhash []byte) (io.ReadCloser
 		return nil, 0, err
 	}
 
-	return &casyncStoreNarReader{
-		ctx:         ctx,
-		caidx:       caidx,
-		desyncStore: c.localStore,
-		seeds:       []desync.Seed{},
-		concurrency: 1,
-		pb:          nil,
-	}, caidx.Length(), nil
+	csnr, err := NewCasyncStoreNarReader(
+		ctx,
+		caidx,
+		c.localStore,
+		[]desync.Seed{},
+		1,
+		nil,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	return csnr, caidx.Length(), nil
 }
 
 func (c *CasyncStore) PutNar(ctx context.Context) (store.WriteCloseHasher, error) {
-	return &casyncStoreNarWriter{
-		ctx: ctx,
+	return NewCasyncStoreNarWriter(
+		ctx,
 
-		desyncStore:      c.localStore,
-		desyncIndexStore: c.localIndexStore,
+		c.localStore,
+		c.localIndexStore,
 
-		concurrency:         1,
-		chunkSizeMinDefault: c.chunkSizeMinDefault,
-		chunkSizeAvgDefault: c.chunkSizeAvgDefault,
-		chunkSizeMaxDefault: c.chunkSizeMaxDefault,
-
-		hash: sha256.New(),
-	}, nil
+		c.concurrency,
+		c.chunkSizeMinDefault,
+		c.chunkSizeAvgDefault,
+		c.chunkSizeMaxDefault,
+	)
 }

@@ -136,6 +136,12 @@ func testNar(t *testing.T, store NarStore) {
 		assert.Equal(t, narhash, w.Sha256Sum(), "narhash should still be correctly calculated")
 	})
 
+	t.Run("PutNar,then abort", func(t *testing.T) {
+		w, err := store.PutNar(context.Background())
+		assert.NoError(t, err)
+		assert.NoError(t, w.Close())
+	})
+
 	t.Run("GetNar", func(t *testing.T) {
 		r, n, err := store.GetNar(context.Background(), narhash)
 
@@ -151,6 +157,13 @@ func testNar(t *testing.T, store NarStore) {
 		expectedContents, err := ioutil.ReadAll(tdr)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedContents, actualContents)
+	})
+
+	t.Run("GetNar,then abort", func(t *testing.T) {
+		r, _, err := store.GetNar(context.Background(), narhash)
+
+		assert.NoError(t, err)
+		assert.NoError(t, r.Close())
 	})
 }
 

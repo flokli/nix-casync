@@ -164,6 +164,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
 			return
 		}
+		defer narWriter.Close()
 
 		// There might be suffixes indicating compression, wrap the request body via the generic decompressor
 		reader, err := compression.NewDecompressorBySuffix(r.Body, chi.URLParam(r, "compressionSuffix"))

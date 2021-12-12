@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/flokli/nix-casync/pkg/store"
+	"github.com/numtide/go-nix/nixbase32"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -93,6 +95,63 @@ func TestHandlerNar(t *testing.T) {
 	})
 }
 
+func TestHandleCompressedUploads(t *testing.T) {
+	s := store.NewMemoryStore()
+	defer s.Close()
+	server := NewServer()
+	server.MountNarinfoStore(s)
+	server.MountNarStore(s)
+
+	outputhashStr := "dr76fsw7d6ws3pymafx0w0sn4rzbw7c9"
+	narinfoTestFilePath := "../../test/compression_xz/" + outputhashStr + ".narinfo"
+	narinfoPath := "/" + outputhashStr + ".narinfo"
+	narhashStr := "0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd"
+	narhash := nixbase32.MustDecodeString(narhashStr)
+	narpathXz := "/nar/1qv1l5zhzgqc66l0vjy2aw7z50fhga16anlyn2c1yp975aafmz93.nar.xz"
+	narTestFilePath := "../../test/compression_xz" + narpathXz
+
+	t.Run("narinfo.URL gets rewritten to uncompressed", func(t *testing.T) {
+		// upload narinfo
+		tdr := readTestData(narinfoTestFilePath)
+		defer tdr.Close()
+
+		rr := httptest.NewRecorder()
+		req, err := http.NewRequest("PUT", narinfoPath, tdr)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		server.Handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+
+		// get the narinfo from the store, check compression bits are removed
+		ni, err := s.GetNarInfo(context.Background(), nixbase32.MustDecodeString(outputhashStr))
+		assert.NoError(t, err)
+
+		assert.Equal(t, "none", ni.Compression)
+		assert.True(t, ni.NarHash.String() == ni.FileHash.String(), "NarHash should eq FileHash")
+		assert.True(t, ni.NarSize == ni.FileSize, "NarHash should eq FileHash")
+	})
+
+	t.Run("narfile gets decompressed on upload", func(t *testing.T) {
+		// upload compressed nar file
+		tdr := readTestData(narTestFilePath)
+		defer tdr.Close()
+		rr := httptest.NewRecorder()
+		req, err := http.NewRequest("PUT", narpathXz, tdr)
+		assert.NoError(t, err)
+
+		server.Handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+
+		// check it exists in the store
+		r, n, err := s.GetNar(context.Background(), narhash)
+		assert.NoError(t, err)
+		assert.NotEqual(t, 0, n)
+		r.Close()
+	})
+}
+
 // testHandlerNarinfo receives an intialized NarinfoStore and tests the handler against it
 func TestHandlerNarinfo(t *testing.T) {
 	server := NewServer()
@@ -161,5 +220,3 @@ func TestHandlerNarinfo(t *testing.T) {
 		assert.Equal(t, expectedContents, actualContents)
 	})
 }
-
-// TODO: test .narinfo rewriting, test .nar decompression

@@ -16,10 +16,8 @@ import (
 
 var CLI struct {
 	Serve struct {
-		//Remote(s)     string `arg name:"casync-remote" help:"URL to the remote casync store." type:"url"`
-		RemoteCAStrs []string `name:"remote-castr" help:"List of URLs to remote castr" type:"string"`
-		CachePath    string   `name:"cache-path" help:"Path to use for a local cache, containing castr, caibx and narinfo files." type:"path" default:"/var/cache/nix-casync"`
-		ListenAddr   string   `name:"listen-addr" help:"The address this service listens on" type:"string" default:"[::]:9000"`
+		CachePath  string `name:"cache-path" help:"Path to use for a local cache, containing castr, caibx and narinfo files." type:"path" default:"/var/cache/nix-casync"`
+		ListenAddr string `name:"listen-addr" help:"The address this service listens on" type:"string" default:"[::]:9000"`
 	} `cmd serve:"Serve a local nix cache."`
 }
 

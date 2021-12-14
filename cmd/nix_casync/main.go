@@ -9,7 +9,8 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/flokli/nix-casync/pkg/server"
-	"github.com/flokli/nix-casync/pkg/store"
+	"github.com/flokli/nix-casync/pkg/store/blobstore"
+	"github.com/flokli/nix-casync/pkg/store/metadatastore"
 	"github.com/go-chi/chi/middleware"
 	log "github.com/sirupsen/logrus"
 )
@@ -25,7 +26,22 @@ func main() {
 	ctx := kong.Parse(&CLI)
 	switch ctx.Command() {
 	case "serve":
-		s := server.NewServer()
+		// initialize casync store
+		castrPath := path.Join(CLI.Serve.CachePath, "castr")
+		caibxPath := path.Join(CLI.Serve.CachePath, "caibx")
+		blobStore, err := blobstore.NewCasyncStore(castrPath, caibxPath) // TODO: ask for more parameters?
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// initialize narinfo store
+		narinfoPath := path.Join(CLI.Serve.CachePath, "narinfo")
+		metadataStore, err := metadatastore.NewFileStore(narinfoPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		s := server.NewServer(blobStore, metadataStore)
 		defer s.Close()
 
 		c := make(chan os.Signal, 1)
@@ -37,23 +53,6 @@ func main() {
 				os.Exit(1)
 			}
 		}()
-
-		// initialize casync store
-		castrPath := path.Join(CLI.Serve.CachePath, "castr")
-		caibxPath := path.Join(CLI.Serve.CachePath, "caibx")
-		casyncStore, err := store.NewCasyncStore(castrPath, caibxPath) // TODO: ask for more parameters?
-		if err != nil {
-			log.Fatal(err)
-		}
-		s.MountNarStore(casyncStore)
-
-		// initialize narinfo store
-		narinfoPath := path.Join(CLI.Serve.CachePath, "narinfo")
-		narinfoStore, err := store.NewFileStore(narinfoPath)
-		if err != nil {
-			log.Fatal(err)
-		}
-		s.MountNarinfoStore(narinfoStore)
 
 		log.Printf("Starting Server at %v", CLI.Serve.ListenAddr)
 		srv := &http.Server{

@@ -1,23 +1,23 @@
-package store
+package blobstore
 
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"hash"
 	"io"
 	"io/ioutil"
 	"os"
 
 	"github.com/folbricht/desync"
-	"github.com/numtide/go-nix/nixbase32"
 )
 
-// casyncStoreNarWriter provides a io.WriteCloser interface
-// The whole content of the .nar file is written to it.
+// casyncStoreWriter provides a io.WriteCloser interface
+// The whole content of the blob is written to it.
 // Internally, it'll write it to a temporary file.
 // On close, its contents will be chunked,
 // the index added to the index store, and the chunks added to the chunk store.
-type casyncStoreNarWriter struct {
+type casyncStoreWriter struct {
 	io.WriteCloser
 
 	ctx context.Context
@@ -30,12 +30,13 @@ type casyncStoreNarWriter struct {
 	chunkSizeAvgDefault uint64
 	chunkSizeMaxDefault uint64
 
-	f    *os.File
-	hash hash.Hash
+	f            *os.File
+	bytesWritten uint64
+	hash         hash.Hash
 }
 
-// NewCasyncStoreNarWriter returns a properly initialized casyncStoreNarWriter
-func NewCasyncStoreNarWriter(
+// NewCasyncStoreWriter returns a properly initialized casyncStoreWriter
+func NewCasyncStoreWriter(
 	ctx context.Context,
 	desyncStore desync.WriteStore,
 	desyncIndexStore desync.IndexWriteStore,
@@ -43,14 +44,14 @@ func NewCasyncStoreNarWriter(
 	chunkSizeMinDefault uint64,
 	chunkSizeAvgDefault uint64,
 	chunkSizeMaxDefault uint64,
-) (*casyncStoreNarWriter, error) {
-	tmpFile, err := ioutil.TempFile("", ".nar")
+) (*casyncStoreWriter, error) {
+	tmpFile, err := ioutil.TempFile("", "blob")
 	if err != nil {
 		return nil, err
 	}
 	// Cleanup is handled in Close()
 
-	return &casyncStoreNarWriter{
+	return &casyncStoreWriter{
 		ctx: ctx,
 
 		desyncStore:      desyncStore,
@@ -66,20 +67,21 @@ func NewCasyncStoreNarWriter(
 	}, nil
 }
 
-func (csnw *casyncStoreNarWriter) Write(p []byte) (int, error) {
-	csnw.hash.Write(p)
-	return csnw.f.Write(p)
+func (csw *casyncStoreWriter) Write(p []byte) (int, error) {
+	csw.hash.Write(p)
+	csw.bytesWritten += uint64(len(p))
+	return csw.f.Write(p)
 }
 
-func (csnw *casyncStoreNarWriter) Close() error {
+func (csw *casyncStoreWriter) Close() error {
 	// at the end, we want to remove the tempfile
-	defer os.Remove(csnw.f.Name())
+	defer os.Remove(csw.f.Name())
 
 	// calculate how the file will be called
-	indexName := nixbase32.EncodeToString(csnw.Sha256Sum()) + ".nar"
+	indexName := hex.EncodeToString(csw.Sha256Sum())
 
 	// check if that same file has already been uploaded.
-	_, err := csnw.desyncIndexStore.GetIndex(indexName)
+	_, err := csw.desyncIndexStore.GetIndex(indexName)
 
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -91,45 +93,49 @@ func (csnw *casyncStoreNarWriter) Close() error {
 	}
 
 	// flush the tempfile and seek to the start
-	err = csnw.f.Sync()
+	err = csw.f.Sync()
 	if err != nil {
 		return err
 	}
-	_, err = csnw.f.Seek(0, 0)
+	_, err = csw.f.Seek(0, 0)
 	if err != nil {
 		return err
 	}
 
 	// Run the chunker on the tempfile
 	chunker, err := desync.NewChunker(
-		csnw.f,
-		csnw.chunkSizeMinDefault,
-		csnw.chunkSizeAvgDefault,
-		csnw.chunkSizeMaxDefault,
+		csw.f,
+		csw.chunkSizeMinDefault,
+		csw.chunkSizeAvgDefault,
+		csw.chunkSizeMaxDefault,
 	)
 	if err != nil {
 		return err
 	}
 
 	// upload all chunks into the store
-	caidx, err := desync.ChunkStream(csnw.ctx,
+	caidx, err := desync.ChunkStream(csw.ctx,
 		chunker,
-		csnw.desyncStore,
-		csnw.concurrency,
+		csw.desyncStore,
+		csw.concurrency,
 	)
 	if err != nil {
 		return err
 	}
 
 	// upload index into the index store
-	// name it after the narhash
-	err = csnw.desyncIndexStore.StoreIndex(indexName, caidx)
+	// name it after the hash
+	err = csw.desyncIndexStore.StoreIndex(indexName, caidx)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (csnw *casyncStoreNarWriter) Sha256Sum() []byte {
-	return csnw.hash.Sum([]byte{})
+func (csw *casyncStoreWriter) Sha256Sum() []byte {
+	return csw.hash.Sum([]byte{})
+}
+
+func (csw *casyncStoreWriter) BytesWritten() uint64 {
+	return csw.bytesWritten
 }

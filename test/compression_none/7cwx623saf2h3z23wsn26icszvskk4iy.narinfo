@@ -1,0 +1,9 @@
+StorePath: /nix/store/7cwx623saf2h3z23wsn26icszvskk4iy-hello
+URL: nar/0rcdxyw7kjpxshv7wb1am0nvjfjbjq67cvrc8dmbsy1slc2ycbxp.nar
+Compression: none
+FileHash: sha256:0rcdxyw7kjpxshv7wb1am0nvjfjbjq67cvrc8dmbsy1slc2ycbxp
+FileSize: 328
+NarHash: sha256:0rcdxyw7kjpxshv7wb1am0nvjfjbjq67cvrc8dmbsy1slc2ycbxp
+NarSize: 328
+References: x236iz9shqypbnm64qgqisz0jr4wmj2b-txt
+Deriver: ss3sdmaabcqywsbd8bc9dnq8d203f90m-hello.drv

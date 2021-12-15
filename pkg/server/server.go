@@ -7,24 +7,27 @@ import (
 
 	"github.com/flokli/nix-casync/pkg/server/compression"
 	"github.com/flokli/nix-casync/pkg/store"
+	"github.com/flokli/nix-casync/pkg/store/blobstore"
+	"github.com/flokli/nix-casync/pkg/store/metadatastore"
 	"github.com/numtide/go-nix/hash"
 	"github.com/numtide/go-nix/nar/narinfo"
 	"github.com/numtide/go-nix/nixbase32"
 
 	"github.com/go-chi/chi/v5"
+	log "github.com/sirupsen/logrus"
 )
 
 type Server struct {
 	Handler *chi.Mux
 
-	narStore     store.NarStore
-	narinfoStore store.NarinfoStore
+	blobStore     blobstore.BlobStore
+	metadataStore metadatastore.MetadataStore
+
 	io.Closer
 }
 
-func NewServer() *Server {
+func NewServer(blobStore blobstore.BlobStore, metadataStore metadatastore.MetadataStore) *Server {
 	r := chi.NewRouter()
-	//r.Use(middleware.Logger)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("nix-casync"))
 	})
@@ -34,19 +37,26 @@ func NewServer() *Server {
 		w.Write([]byte("StoreDir: /nix/store\nWantMassQuery: 1\nPriority: 40"))
 	})
 
-	return &Server{Handler: r}
+	s := &Server{
+		Handler:       r,
+		blobStore:     blobStore,
+		metadataStore: metadataStore,
+	}
+	s.RegisterNarHandlers()
+	s.RegisterNarinfoHandlers()
+	return s
 }
 
 func (s *Server) Close() error {
-	err := s.narStore.Close()
+	// TODO: how do we ensure we close both?
+	err := s.blobStore.Close()
 	if err != nil {
 		return err
 	}
-	return s.narinfoStore.Close()
+	return s.metadataStore.Close()
 }
 
-func (s *Server) MountNarinfoStore(narinfoStore store.NarinfoStore) {
-	s.narinfoStore = narinfoStore
+func (s *Server) RegisterNarinfoHandlers() {
 	pattern := "/{outputhash:^[" + nixbase32.Alphabet + "]{32}}.narinfo"
 	s.Handler.Get(pattern, s.handleNarinfo)
 	s.Handler.Head(pattern, s.handleNarinfo)
@@ -60,7 +70,8 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusBadRequest)
 	}
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
-		narinfo, err := s.narinfoStore.GetNarInfo(r.Context(), outputhash)
+		// get PathInfo
+		pathInfo, err := s.metadataStore.GetPathInfo(r.Context(), outputhash)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if err == store.ErrNotFound {
@@ -70,8 +81,49 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		narhashStr := nixbase32.EncodeToString(pathInfo.NarHash)
+
+		// get NarMeta
+		narMeta, err := s.metadataStore.GetNarMeta(r.Context(), pathInfo.NarHash)
+		if err != nil {
+			// if we can't retrieve the NarMeta, that's a inconsistency.
+			log.Errorf(
+				"Unable to find NarMeta for NarHash %s, referenced in PathInfo %s",
+				narhashStr,
+				nixbase32.EncodeToString(pathInfo.OutputHash),
+			)
+			http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusInternalServerError)
+		}
+
+		// render the narinfo
+		narHash := &hash.Hash{
+			HashType: hash.HashTypeSha256,
+			Digest:   narMeta.NarHash,
+		}
+		narInfo := &narinfo.NarInfo{
+			StorePath:   pathInfo.StorePath(),
+			URL:         "nar/" + narhashStr + ".nar",
+			Compression: "none",
+
+			FileHash: narHash,
+			FileSize: narMeta.Size,
+
+			NarHash: narHash,
+			NarSize: narMeta.Size,
+
+			References: narMeta.ReferencesStr,
+
+			Deriver: pathInfo.Deriver,
+
+			System: pathInfo.System,
+
+			Signatures: pathInfo.NarinfoSignatures,
+
+			CA: pathInfo.CA,
+		}
+
 		// render narinfo
-		narinfoContent := narinfo.String()
+		narinfoContent := narInfo.String()
 
 		w.Header().Add("Content-Type", "text/x-nix-narinfo")
 		w.Header().Add("Content-Length", fmt.Sprintf("%d", len(narinfoContent)))
@@ -82,24 +134,50 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPut {
 		ni, err := narinfo.Parse(r.Body)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusBadRequest)
+			log.Errorf("Error parsing .narinfo: %v", err)
+			http.Error(w, fmt.Sprintf("Error parsing narinfo: %v", err), http.StatusBadRequest)
 			return
 		}
 
-		// rewrite narinfo, as we undo all compression and serve them from /nar/$narhash.nar
-		ni.Compression = "none"
-		ni.FileHash = ni.NarHash
-		ni.FileSize = ni.NarSize
-		ni.URL = "nar/" + nixbase32.EncodeToString(ni.NarHash.Digest) + ".nar"
-
-		// TODO: can this ever happen?
-		if ni.NarHash.HashType != hash.HashTypeSha256 {
-			http.Error(w, fmt.Sprintf("handle-narinfo: unexpected hashtype: %v", ni.NarHash), http.StatusBadRequest)
+		// retrieve the NarMeta
+		narMeta, err := s.metadataStore.GetNarMeta(r.Context(), ni.NarHash.Digest)
+		if err == store.ErrNotFound {
+			log.Error("Rejected uploading a .narinfo pointing to a non-existent narhash")
+			http.Error(w, "narinfo points to non-existent narhash", http.StatusBadRequest)
+			return
 		}
 
-		err = s.narinfoStore.PutNarInfo(r.Context(), outputhash, ni)
+		// Parse the .narinfo into a PathInfo and NarMeta struct
+		sentPathInfo, sentNarMeta, err := metadatastore.ParseNarinfo(ni)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusInternalServerError)
+			log.Errorf("Unable to parse .narinfo: %v", err)
+			http.Error(w, "Unable to parse .narinfo: %v", http.StatusBadRequest)
+		}
+
+		// Compare narMeta generated out of the .narinfo with the one in the store
+		if !narMeta.IsEqualTo(sentNarMeta, false) {
+			log.Error("Sent .narinfo with conflicting NarMeta")
+			http.Error(w, "Nar Metadata is conflicting", http.StatusBadRequest)
+		}
+
+		// HACK: until we implement our own reference scanner on NAR upload, we
+		// populate NarMeta.References[Str] on .narinfo upload,
+		// if it's empty right now.
+		if len(narMeta.References) == 0 && len(sentNarMeta.References) != 0 {
+			narMeta.ReferencesStr = sentNarMeta.ReferencesStr
+			narMeta.References = sentNarMeta.References
+			s.metadataStore.PutNarMeta(r.Context(), narMeta)
+		}
+
+		// Do full comparison of NarMeta, including references
+		if !narMeta.IsEqualTo(sentNarMeta, true) {
+			log.Error("Sent .narinfo with conflicting NarMeta (References)")
+			http.Error(w, "Nar Metadata (References) is conflicting", http.StatusBadRequest)
+		}
+
+		err = s.metadataStore.PutPathInfo(r.Context(), sentPathInfo)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("PutPathInfo: %v", err), http.StatusInternalServerError)
 			return
 		}
 		return
@@ -107,8 +185,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 }
 
-func (s *Server) MountNarStore(narStore store.NarStore) {
-	s.narStore = narStore
+func (s *Server) RegisterNarHandlers() {
 	patternPlain := "/nar/{narhash:^[" + nixbase32.Alphabet + "]{52}$}.nar"
 	patternCompressed := patternPlain + `{compressionSuffix:^(\.\w+)$}`
 
@@ -140,7 +217,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusBadRequest)
 		}
-		r, size, err := s.narStore.GetNar(r.Context(), narhash)
+		r, size, err := s.blobStore.GetBlob(r.Context(), narhash)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if err == store.ErrNotFound {
@@ -159,27 +236,39 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodPut {
-		narWriter, err := s.narStore.PutNar(r.Context())
+		blobWriter, err := s.blobStore.PutBlob(r.Context())
 		if err != nil {
-			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error initializing blobWriter: %v", err), http.StatusInternalServerError)
 			return
 		}
-		defer narWriter.Close()
+		defer blobWriter.Close()
 
 		// There might be suffixes indicating compression, wrap the request body via the generic decompressor
 		reader, err := compression.NewDecompressorBySuffix(r.Body, chi.URLParam(r, "compressionSuffix"))
 		if err != nil {
-			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error initializing decompressor: %v", err), http.StatusInternalServerError)
 		}
 
-		// copy the body of the request into narwriter
-		_, err = io.Copy(narWriter, reader)
+		// copy the body of the request into blobWriter
+		_, err = io.Copy(blobWriter, reader)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error copying to blobWriter: %v", err), http.StatusInternalServerError)
 		}
-		err = narWriter.Close()
+		err = blobWriter.Close()
 		if err != nil {
-			http.Error(w, fmt.Sprintf("PUT handle-nar: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error closing blobWriter: %v", err), http.StatusInternalServerError)
+		}
+
+		// Store NarMeta
+		narMeta := &metadatastore.NarMeta{
+			NarHash: blobWriter.Sha256Sum(),
+			Size:    blobWriter.BytesWritten(),
+
+			// TODO: Scan for references, add them here instead of filling on the first .narinfo file upload
+		}
+		err = s.metadataStore.PutNarMeta(r.Context(), narMeta)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("PutNarMeta: %v", err), http.StatusInternalServerError)
 		}
 
 		return

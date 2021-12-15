@@ -1,15 +1,16 @@
-package store
+package blobstore
 
 import (
 	"context"
+	"encoding/hex"
 	"io"
 	"os"
 
+	"github.com/flokli/nix-casync/pkg/store"
 	"github.com/folbricht/desync"
-	"github.com/numtide/go-nix/nixbase32"
 )
 
-var _ NarStore = &CasyncStore{}
+var _ BlobStore = &CasyncStore{}
 
 type CasyncStore struct {
 	localStore      desync.WriteStore
@@ -67,18 +68,17 @@ func (c *CasyncStore) Close() error {
 	return c.localIndexStore.Close()
 }
 
-func (c *CasyncStore) GetNar(ctx context.Context, narhash []byte) (io.ReadCloser, int64, error) {
-	narhashStr := nixbase32.EncodeToString(narhash)
+func (c *CasyncStore) GetBlob(ctx context.Context, sha256 []byte) (io.ReadCloser, int64, error) {
 	// retrieve .caidx
-	caidx, err := c.localIndexStore.GetIndex(narhashStr + ".nar")
+	caidx, err := c.localIndexStore.GetIndex(hex.EncodeToString(sha256))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, 0, ErrNotFound
+			return nil, 0, store.ErrNotFound
 		}
 		return nil, 0, err
 	}
 
-	csnr, err := NewCasyncStoreNarReader(
+	csnr, err := NewCasyncStoreReader(
 		ctx,
 		caidx,
 		c.localStore,
@@ -92,8 +92,8 @@ func (c *CasyncStore) GetNar(ctx context.Context, narhash []byte) (io.ReadCloser
 	return csnr, caidx.Length(), nil
 }
 
-func (c *CasyncStore) PutNar(ctx context.Context) (WriteCloseHasher, error) {
-	return NewCasyncStoreNarWriter(
+func (c *CasyncStore) PutBlob(ctx context.Context) (WriteCloseHasher, error) {
+	return NewCasyncStoreWriter(
 		ctx,
 
 		c.localStore,

@@ -1,0 +1,9 @@
+StorePath: /nix/store/x236iz9shqypbnm64qgqisz0jr4wmj2b-txt
+URL: nar/0xmvxmsmmc6n79sk2h3r6db3yp8drmxps61mdk7iqnvc6vcsww60.nar
+Compression: none
+FileHash: sha256:0xmvxmsmmc6n79sk2h3r6db3yp8drmxps61mdk7iqnvc6vcsww60
+FileSize: 128
+NarHash: sha256:0xmvxmsmmc6n79sk2h3r6db3yp8drmxps61mdk7iqnvc6vcsww60
+NarSize: 128
+References: 
+Deriver: bbqmya8wi5wyyjgmp5qxdqackglh5s4i-txt.drv

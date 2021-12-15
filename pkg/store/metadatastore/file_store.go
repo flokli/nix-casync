@@ -39,11 +39,13 @@ func NewFileStore(baseDirectory string) (*FileStore, error) {
 }
 
 func (fs *FileStore) pathInfoPath(outputHash []byte) string {
-	return path.Join(fs.pathInfoDirectory, hex.EncodeToString(outputHash)+".json")
+	encodedHash := hex.EncodeToString(outputHash)
+	return path.Join(fs.pathInfoDirectory, encodedHash[:4], encodedHash+".json")
 }
 
 func (fs *FileStore) narMetaPath(narHash []byte) string {
-	return path.Join(fs.narMetaDirectory, hex.EncodeToString(narHash)+".json")
+	encodedHash := hex.EncodeToString(narHash)
+	return path.Join(fs.narMetaDirectory, encodedHash[:4], encodedHash+".json")
 }
 
 func (fs *FileStore) GetPathInfo(ctx context.Context, outputHash []byte) (*PathInfo, error) {
@@ -83,10 +85,17 @@ func (fs *FileStore) PutPathInfo(ctx context.Context, pathinfo *PathInfo) error 
 	}
 
 	p := fs.pathInfoPath(pathinfo.OutputHash)
+	dir := path.Dir(p)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err := os.MkdirAll(dir, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
 
 	// create a tempfile (in the same directory), write to it, then move it to where we want it to be
 	// this is to ensure an atomic write/replacement.
-	tmpFile, err := ioutil.TempFile(fs.pathInfoDirectory, "narinfo")
+	tmpFile, err := ioutil.TempFile(path.Dir(p), "narinfo")
 	if err != nil {
 		return err
 	}
@@ -156,9 +165,17 @@ func (fs *FileStore) PutNarMeta(ctx context.Context, narMeta *NarMeta) error {
 
 	p := fs.narMetaPath(narMeta.NarHash)
 
+	dir := path.Dir(p)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err := os.MkdirAll(dir, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
+
 	// create a tempfile (in the same directory), write to it, then move it to where we want it to be
 	// this is to ensure an atomic write/replacement.
-	tmpFile, err := ioutil.TempFile(fs.narMetaDirectory, "narmeta")
+	tmpFile, err := ioutil.TempFile(path.Dir(p), "narmeta")
 	if err != nil {
 		return err
 	}

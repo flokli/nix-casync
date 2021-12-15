@@ -103,8 +103,10 @@ func (pi *PathInfo) Check() error {
 	if len(pi.NarHash) != 32 {
 		return fmt.Errorf("invalid narhash: %v", nixbase32.EncodeToString(pi.NarHash))
 	}
-	if len(pi.Deriver) < 32+1+1 || !strings.HasSuffix(pi.Deriver, ".drv") {
-		// TODO: we might just want to have a store path parser
+	// Derivers can be empty (when importing store paths),
+	// but when they're not, they need to be at least long enough to
+	// hold the output hash (base32 encoded), a dash and the name
+	if !(len(pi.Deriver) == 0 || (strings.HasSuffix(pi.Deriver, ".drv") && len(pi.Deriver) > 32+1+1)) {
 		return fmt.Errorf("invalid deriver: %v", pi.Deriver)
 	}
 	return nil

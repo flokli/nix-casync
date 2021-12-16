@@ -86,11 +86,10 @@ func (fs *FileStore) PutPathInfo(ctx context.Context, pathinfo *PathInfo) error 
 
 	p := fs.pathInfoPath(pathinfo.OutputHash)
 	dir := path.Dir(p)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		err := os.MkdirAll(dir, os.ModePerm)
-		if err != nil {
-			return err
-		}
+
+	err = os.MkdirAll(dir, os.ModePerm)
+	if err != nil {
+		return err
 	}
 
 	// create a tempfile (in the same directory), write to it, then move it to where we want it to be
@@ -164,13 +163,11 @@ func (fs *FileStore) PutNarMeta(ctx context.Context, narMeta *NarMeta) error {
 	}
 
 	p := fs.narMetaPath(narMeta.NarHash)
-
 	dir := path.Dir(p)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		err := os.MkdirAll(dir, os.ModePerm)
-		if err != nil {
-			return err
-		}
+
+	err = os.MkdirAll(dir, os.ModePerm)
+	if err != nil {
+		return err
 	}
 
 	// create a tempfile (in the same directory), write to it, then move it to where we want it to be

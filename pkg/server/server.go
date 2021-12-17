@@ -1,13 +1,10 @@
 package server
 
 import (
-	"compress/gzip"
 	"fmt"
 	"io"
 	"net/http"
 
-	"github.com/andybalholm/brotli"
-	"github.com/datadog/zstd"
 	"github.com/flokli/nix-casync/pkg/server/compression"
 	"github.com/flokli/nix-casync/pkg/store"
 	"github.com/flokli/nix-casync/pkg/store/blobstore"
@@ -241,34 +238,21 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		defer blobReader.Close()
 
 		// check compression suffix, and serve a compressed file depending on that.
+		compressionSuffix := chi.URLParam(r, "compressionSuffix")
+
 		// We only support zstd, gzip, brotli and none, as the others are way too CPU-intensive,
 		// and never advertised anyways.
-		compressionSuffix := chi.URLParam(r, "compressionSuffix")
-		if !(compressionSuffix == "" || compressionSuffix == ".zst" || compressionSuffix == ".gz" || compressionSuffix == ".br") {
-			// In case of another compression suffix, serve a 404 (as Nix might send a HEAD request while trying to upload xz, for example)
+		compressedWriter, err := compression.NewCompressorBySuffix(w, compressionSuffix)
+		if err != nil {
+			// We still serve a 404 (as Nix might send a HEAD request while trying to upload xz, for example)
 			http.Error(w, fmt.Sprintf("Unsupported compression suffix: %v", compressionSuffix), http.StatusNotFound)
-			return
 		}
 
 		w.Header().Add("Content-Type", "application/x-nix-nar")
 		w.Header().Add("Content-Length", fmt.Sprintf("%d", size))
 
-		switch compressionSuffix {
-		case "":
-			io.Copy(w, blobReader)
-		case ".zst":
-			zstdWriter := zstd.NewWriter(w)
-			defer zstdWriter.Close()
-			io.Copy(zstdWriter, blobReader)
-		case ".gz":
-			gzipWriter := gzip.NewWriter(w)
-			defer gzipWriter.Close()
-			io.Copy(gzipWriter, blobReader)
-		case ".br":
-			brotliWriter := brotli.NewWriter(w)
-			defer brotliWriter.Close()
-			io.Copy(brotliWriter, blobReader)
-		}
+		io.Copy(compressedWriter, blobReader)
+		defer compressedWriter.Close()
 		return
 	}
 

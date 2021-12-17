@@ -58,8 +58,9 @@ This also means `HTTP HEAD` requests to "compressed locations" will `404`, and
 as a result, Nix clients might end up uploading the same `.nar` files multiple
 times. [^1]
 
-Generally, you only want to use compression during upload if the binary cache
-is remote, and if you do, use a fast compression algorithm, such as `zstd`.
+If the binary cache is remote, it is preferable to use compression during
+upload to reduce bandwidth usage. In that case, using a fast compression
+algorithm, such as `zstd` is recommended.
 
 By default, downloads are served with ZSTD Compression. This can be tweaked via
 the `--nar-compression` command line parameter.

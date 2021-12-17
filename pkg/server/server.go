@@ -251,7 +251,11 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "application/x-nix-nar")
 		w.Header().Add("Content-Length", fmt.Sprintf("%d", size))
 
-		io.Copy(compressedWriter, blobReader)
+		_, err = io.Copy(compressedWriter, blobReader)
+		if err != nil {
+			log.Errorf("error sending narfile to client: %v", err)
+			return
+		}
 		defer compressedWriter.Close()
 		return
 	}

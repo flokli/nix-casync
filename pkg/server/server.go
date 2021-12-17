@@ -123,13 +123,11 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 			CA: pathInfo.CA,
 		}
 
-		if s.narServeCompression != "none" {
-			if s.narServeCompression == "zstd" {
-				narInfo.URL = narInfo.URL + ".zst"
-			} else {
-				narInfo.URL = narInfo.URL + "." + s.narServeCompression
-			}
+		suffix, err := compression.CompressionTypeToSuffix(s.narServeCompression)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("invalid compression type: %v", err), http.StatusInternalServerError)
 		}
+		narInfo.URL = narInfo.URL + suffix
 
 		// render narinfo
 		narinfoContent := narInfo.String()

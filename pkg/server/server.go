@@ -240,23 +240,28 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		// check compression suffix, and serve a compressed file depending on that.
 		compressionSuffix := chi.URLParam(r, "compressionSuffix")
 
-		// We only support zstd, gzip, brotli and none, as the others are way too CPU-intensive,
-		// and never advertised anyways.
-		compressedWriter, err := compression.NewCompressorBySuffix(w, compressionSuffix)
-		if err != nil {
-			// We still serve a 404 (as Nix might send a HEAD request while trying to upload xz, for example)
-			http.Error(w, fmt.Sprintf("Unsupported compression suffix: %v", compressionSuffix), http.StatusNotFound)
+		var writer io.Writer = w
+		if compressionSuffix != "" {
+			// We only support zstd, gzip, brotli and none, as the others are way too CPU-intensive,
+			// and never advertised anyways.
+			compressedWriter, err := compression.NewCompressorBySuffix(w, compressionSuffix)
+			if err != nil {
+				// We still serve a 404 (as Nix might send a HEAD request while trying to upload xz, for example)
+				http.Error(w, fmt.Sprintf("Unsupported compression suffix: %v", compressionSuffix), http.StatusNotFound)
+			}
+			defer compressedWriter.Close()
+			writer = compressedWriter
 		}
 
 		w.Header().Add("Content-Type", "application/x-nix-nar")
 		w.Header().Add("Content-Length", fmt.Sprintf("%d", size))
 
-		_, err = io.Copy(compressedWriter, blobReader)
+		_, err = io.Copy(writer, blobReader)
+
 		if err != nil {
 			log.Errorf("error sending narfile to client: %v", err)
 			return
 		}
-		defer compressedWriter.Close()
 		return
 	}
 

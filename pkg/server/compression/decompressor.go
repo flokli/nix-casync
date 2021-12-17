@@ -63,5 +63,11 @@ func NewDecompressorBySuffix(r io.Reader, compressionSuffix string) (io.ReadClos
 	if compressionSuffix[1:] == "zst" {
 		return NewDecompressor(r, "zstd")
 	}
+	if compressionSuffix[1:] == "gz" {
+		return NewDecompressor(r, "gzip")
+	}
+	if compressionSuffix[1:] == "bz2" {
+		return NewDecompressor(r, "bzip2")
+	}
 	return NewDecompressor(r, compressionSuffix[1:])
 }

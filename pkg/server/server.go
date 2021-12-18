@@ -71,7 +71,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 	outputhashStr := chi.URLParam(r, "outputhash")
 	outputhash, err := nixbase32.DecodeString(outputhashStr)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Unable to decode outputhash: %v", err), http.StatusBadRequest)
 	}
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		// get PathInfo
@@ -81,7 +81,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 			if err == store.ErrNotFound {
 				status = http.StatusNotFound
 			}
-			http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), status)
+			http.Error(w, fmt.Sprintf("Error getting PathInfo: %v", err), status)
 			return
 		}
 
@@ -96,7 +96,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 				narhashStr,
 				nixbase32.EncodeToString(pathInfo.OutputHash),
 			)
-			http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error getting NarMeta: %v", err), http.StatusInternalServerError)
 		}
 
 		// render the narinfo
@@ -125,7 +125,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 
 		suffix, err := compression.CompressionTypeToSuffix(s.narServeCompression)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("invalid compression type: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Invalid compression type: %v", err), http.StatusInternalServerError)
 		}
 		narInfo.URL = narInfo.URL + suffix
 
@@ -142,7 +142,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		ni, err := narinfo.Parse(r.Body)
 		if err != nil {
 			log.Errorf("Error parsing .narinfo: %v", err)
-			http.Error(w, fmt.Sprintf("Error parsing narinfo: %v", err), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("Error parsing .narinfo: %v", err), http.StatusBadRequest)
 			return
 		}
 
@@ -150,21 +150,21 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		narMeta, err := s.metadataStore.GetNarMeta(r.Context(), ni.NarHash.Digest)
 		if err == store.ErrNotFound {
 			log.Error("Rejected uploading a .narinfo pointing to a non-existent narhash")
-			http.Error(w, "narinfo points to non-existent narhash", http.StatusBadRequest)
+			http.Error(w, "Narinfo points to non-existent NarHash", http.StatusBadRequest)
 			return
 		}
 
 		// Parse the .narinfo into a PathInfo and NarMeta struct
 		sentPathInfo, sentNarMeta, err := metadatastore.ParseNarinfo(ni)
 		if err != nil {
-			log.Errorf("Unable to parse .narinfo: %v", err)
-			http.Error(w, "Unable to parse .narinfo: %v", http.StatusBadRequest)
+			log.Errorf("Unable to parse narinfo into PathInfo and NarMeta: %v", err)
+			http.Error(w, "Unable to parse narinfo into PathInfo and NarMeta: %v", http.StatusBadRequest)
 		}
 
 		// Compare narMeta generated out of the .narinfo with the one in the store
 		if !narMeta.IsEqualTo(sentNarMeta, false) {
 			log.Error("Sent .narinfo with conflicting NarMeta")
-			http.Error(w, "Nar Metadata is conflicting", http.StatusBadRequest)
+			http.Error(w, "NarMeta is conflicting", http.StatusBadRequest)
 		}
 
 		// HACK: until we implement our own reference scanner on NAR upload, we
@@ -179,12 +179,12 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		// Do full comparison of NarMeta, including references
 		if !narMeta.IsEqualTo(sentNarMeta, true) {
 			log.Error("Sent .narinfo with conflicting NarMeta (References)")
-			http.Error(w, "Nar Metadata (References) is conflicting", http.StatusBadRequest)
+			http.Error(w, "NarMeta (References) is conflicting", http.StatusBadRequest)
 		}
 
 		err = s.metadataStore.PutPathInfo(r.Context(), sentPathInfo)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("PutPathInfo: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error putting PathInfo: %v", err), http.StatusInternalServerError)
 			return
 		}
 		return
@@ -257,7 +257,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		_, err = io.Copy(writer, blobReader)
 
 		if err != nil {
-			log.Errorf("error sending narfile to client: %v", err)
+			log.Errorf("Error sending Narfile to client: %v", err)
 			return
 		}
 		return
@@ -296,7 +296,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		}
 		err = s.metadataStore.PutNarMeta(r.Context(), narMeta)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("PutNarMeta: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error putting NarMeta: %v", err), http.StatusInternalServerError)
 		}
 
 		return

@@ -29,15 +29,14 @@ type Server struct {
 	io.Closer
 }
 
-func NewServer(blobStore blobstore.BlobStore, metadataStore metadatastore.MetadataStore, narServeCompression string) *Server {
+func NewServer(blobStore blobstore.BlobStore, metadataStore metadatastore.MetadataStore, narServeCompression string, priority int) *Server {
 	r := chi.NewRouter()
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("nix-casync"))
 	})
 
 	r.Get("/nix-cache-info", func(w http.ResponseWriter, r *http.Request) {
-		// TODO: make configurable
-		w.Write([]byte("StoreDir: /nix/store\nWantMassQuery: 1\nPriority: 40"))
+		w.Write([]byte(fmt.Sprintf("StoreDir: /nix/store\nWantMassQuery: 1\nPriority: %d\n", priority)))
 	})
 
 	s := &Server{

@@ -20,6 +20,7 @@ var CLI struct {
 		CachePath      string `name:"cache-path" help:"Path to use for a local cache, containing castr, caibx and narinfo files." type:"path" default:"/var/cache/nix-casync"`
 		NarCompression string `name:"nar-compression" help:"The compression algorithm to advertise .nar files with (zstd,gzip,brotli,none)" enum:"zstd,gzip,brotli,none" type:"string" default:"zstd"`
 		ListenAddr     string `name:"listen-addr" help:"The address this service listens on" type:"string" default:"[::]:9000"`
+		Priority       int    `name:"priority" help:"What priority to advertise in nix-cache-info. Defaults to 40." type:"int" default:40`
 	} `cmd serve:"Serve a local nix cache."`
 }
 
@@ -42,7 +43,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		s := server.NewServer(blobStore, metadataStore, CLI.Serve.NarCompression)
+		s := server.NewServer(blobStore, metadataStore, CLI.Serve.NarCompression, CLI.Serve.Priority)
 		defer s.Close()
 
 		c := make(chan os.Signal, 1)

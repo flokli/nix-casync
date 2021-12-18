@@ -32,7 +32,7 @@ func TestHandler(t *testing.T) {
 	defer blobStore.Close()
 	metadataStore := metadatastore.NewMemoryStore()
 	defer metadataStore.Close()
-	server := NewServer(blobStore, metadataStore, "zstd")
+	server := NewServer(blobStore, metadataStore, "zstd", 40)
 
 	t.Run("Nar tests", func(t *testing.T) {
 		narhashStr := "0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd"

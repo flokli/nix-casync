@@ -10,7 +10,6 @@ import (
 	"github.com/flokli/nix-casync/pkg/server/compression"
 	"github.com/flokli/nix-casync/pkg/store/blobstore"
 	"github.com/flokli/nix-casync/pkg/store/metadatastore"
-	"github.com/numtide/go-nix/hash"
 	"github.com/numtide/go-nix/nar/narinfo"
 	"github.com/numtide/go-nix/nixbase32"
 
@@ -88,52 +87,23 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		narhashStr := nixbase32.EncodeToString(pathInfo.NarHash)
-
 		// get NarMeta
 		narMeta, err := s.metadataStore.GetNarMeta(r.Context(), pathInfo.NarHash)
 		if err != nil {
 			// if we can't retrieve the NarMeta, that's a inconsistency.
 			log.Errorf(
 				"Unable to find NarMeta for NarHash %s, referenced in PathInfo %s",
-				narhashStr,
+				nixbase32.EncodeToString(pathInfo.NarHash),
 				nixbase32.EncodeToString(pathInfo.OutputHash),
 			)
 			http.Error(w, fmt.Sprintf("Error getting NarMeta: %v", err), http.StatusInternalServerError)
 		}
 
-		// render the narinfo
-		narHash := &hash.Hash{
-			HashType: hash.HashTypeSha256,
-			Digest:   narMeta.NarHash,
-		}
-		narInfo := &narinfo.NarInfo{
-			StorePath:   pathInfo.StorePath(),
-			URL:         "nar/" + narhashStr + ".nar",
-			Compression: s.narServeCompression,
-
-			NarHash: narHash,
-			NarSize: narMeta.Size,
-
-			References: narMeta.ReferencesStr,
-
-			Deriver: pathInfo.Deriver,
-
-			System: pathInfo.System,
-
-			Signatures: pathInfo.NarinfoSignatures,
-
-			CA: pathInfo.CA,
-		}
-
-		suffix, err := compression.CompressionTypeToSuffix(s.narServeCompression)
+		narinfoContent, err := metadatastore.RenderNarinfo(pathInfo, narMeta, s.narServeCompression)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Invalid compression type: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Unable to render .narinfo: %v", err), http.StatusInternalServerError)
+			return
 		}
-		narInfo.URL = narInfo.URL + suffix
-
-		// render narinfo
-		narinfoContent := narInfo.String()
 
 		w.Header().Add("Content-Type", "text/x-nix-narinfo")
 		w.Header().Add("Content-Length", fmt.Sprintf("%d", len(narinfoContent)))

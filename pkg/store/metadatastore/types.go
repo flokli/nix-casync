@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/flokli/nix-casync/pkg/server/compression"
 	"github.com/flokli/nix-casync/pkg/util"
 	"github.com/numtide/go-nix/hash"
 	"github.com/numtide/go-nix/nar/narinfo"
@@ -87,6 +88,43 @@ func ParseNarinfo(narinfo *narinfo.NarInfo) (*PathInfo, *NarMeta, error) {
 	}
 	return pathInfo, narMeta, nil
 
+}
+
+// RenderNarinfo renders a minimal .narinfo from a PathInfo and NarMeta.
+// The URL is synthesized to /nar/$narhash.nar[$compressionSuffix]
+func RenderNarinfo(pathInfo *PathInfo, narMeta *NarMeta, compressionType string) (string, error) {
+	// render the narinfo
+	narHash := &hash.Hash{
+		HashType: hash.HashTypeSha256,
+		Digest:   narMeta.NarHash,
+	}
+	narhashStr := nixbase32.EncodeToString(pathInfo.NarHash)
+	narInfo := &narinfo.NarInfo{
+		StorePath:   pathInfo.StorePath(),
+		URL:         "nar/" + narhashStr + ".nar",
+		Compression: compressionType,
+
+		NarHash: narHash,
+		NarSize: narMeta.Size,
+
+		References: narMeta.ReferencesStr,
+
+		Deriver: pathInfo.Deriver,
+
+		System: pathInfo.System,
+
+		Signatures: pathInfo.NarinfoSignatures,
+
+		CA: pathInfo.CA,
+	}
+
+	suffix, err := compression.CompressionTypeToSuffix(compressionType)
+	if err != nil {
+		return "", err
+	}
+	narInfo.URL = narInfo.URL + suffix
+
+	return narInfo.String(), nil
 }
 
 func (pi *PathInfo) StorePath() string {

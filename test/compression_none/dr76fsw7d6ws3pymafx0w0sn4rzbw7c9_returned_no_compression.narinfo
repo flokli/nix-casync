@@ -1,0 +1,7 @@
+StorePath: /nix/store/dr76fsw7d6ws3pymafx0w0sn4rzbw7c9-etc-os-release
+URL: nar/0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd.nar
+Compression: none
+NarHash: sha256:0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd
+NarSize: 464
+References: 
+Deriver: hip5s2x9g0mqvamqhgkjxfhjw9mlm8j9-etc-os-release.drv

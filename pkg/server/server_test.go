@@ -9,6 +9,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/datadog/zstd"
 	"github.com/flokli/nix-casync/pkg/store/blobstore"
 	"github.com/flokli/nix-casync/pkg/store/metadatastore"
 	"github.com/numtide/go-nix/nixbase32"
@@ -31,7 +32,7 @@ func TestHandler(t *testing.T) {
 	defer blobStore.Close()
 	metadataStore := metadatastore.NewMemoryStore()
 	defer metadataStore.Close()
-	server := NewServer(blobStore, metadataStore)
+	server := NewServer(blobStore, metadataStore, "zstd")
 
 	t.Run("Nar tests", func(t *testing.T) {
 		narhashStr := "0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd"
@@ -90,6 +91,29 @@ func TestHandler(t *testing.T) {
 
 			// read in the retrieved body
 			actualContents, err := io.ReadAll(rr.Result().Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.Equal(t, expectedContents, actualContents)
+		})
+
+		// get compressed .nar, which should match the uncompressed .nar after decompressing with zstd
+		t.Run("GET compressed .nar", func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			req, err := http.NewRequest("GET", narpath+".zst", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			server.Handler.ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+			assert.Equal(t, []string{"application/x-nix-nar"}, rr.Result().Header["Content-Type"])
+			assert.Equal(t, []string{fmt.Sprintf("%d", len(expectedContents))}, rr.Result().Header["Content-Length"])
+
+			// read in the retrieved body
+			zstdReader := zstd.NewReader(rr.Result().Body)
+			defer zstdReader.Close()
+			actualContents, err := io.ReadAll(zstdReader)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -179,7 +203,7 @@ func TestHandler(t *testing.T) {
 		})
 
 		// read in the text fixture
-		tdr := readTestData(testFilePath)
+		tdr := readTestData("../../test/compression_none/" + outputhashStr + "_returned_zstd.narinfo")
 		defer tdr.Close()
 		expectedContents, err := io.ReadAll(tdr)
 		if err != nil {

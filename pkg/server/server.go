@@ -23,10 +23,12 @@ type Server struct {
 	blobStore     blobstore.BlobStore
 	metadataStore metadatastore.MetadataStore
 
+	narServeCompression string // zstd,gzip,brotli,none
+
 	io.Closer
 }
 
-func NewServer(blobStore blobstore.BlobStore, metadataStore metadatastore.MetadataStore) *Server {
+func NewServer(blobStore blobstore.BlobStore, metadataStore metadatastore.MetadataStore, narServeCompression string) *Server {
 	r := chi.NewRouter()
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("nix-casync"))
@@ -38,10 +40,12 @@ func NewServer(blobStore blobstore.BlobStore, metadataStore metadatastore.Metada
 	})
 
 	s := &Server{
-		Handler:       r,
-		blobStore:     blobStore,
-		metadataStore: metadataStore,
+		Handler:             r,
+		blobStore:           blobStore,
+		metadataStore:       metadataStore,
+		narServeCompression: narServeCompression,
 	}
+
 	s.RegisterNarHandlers()
 	s.RegisterNarinfoHandlers()
 	return s
@@ -103,10 +107,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		narInfo := &narinfo.NarInfo{
 			StorePath:   pathInfo.StorePath(),
 			URL:         "nar/" + narhashStr + ".nar",
-			Compression: "none",
-
-			FileHash: narHash,
-			FileSize: narMeta.Size,
+			Compression: s.narServeCompression,
 
 			NarHash: narHash,
 			NarSize: narMeta.Size,
@@ -121,6 +122,12 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 
 			CA: pathInfo.CA,
 		}
+
+		suffix, err := compression.CompressionTypeToSuffix(s.narServeCompression)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("invalid compression type: %v", err), http.StatusInternalServerError)
+		}
+		narInfo.URL = narInfo.URL + suffix
 
 		// render narinfo
 		narinfoContent := narInfo.String()
@@ -189,22 +196,22 @@ func (s *Server) RegisterNarHandlers() {
 	patternPlain := "/nar/{narhash:^[" + nixbase32.Alphabet + "]{52}$}.nar"
 	patternCompressed := patternPlain + `{compressionSuffix:^(\.\w+)$}`
 
-	// We only serve plain Narfiles
 	s.Handler.Get(patternPlain, s.handleNar)
 	s.Handler.Head(patternPlain, s.handleNar)
+	s.Handler.Get(patternCompressed, s.handleNar)
+	s.Handler.Head(patternCompressed, s.handleNar)
 
 	// When Nix uploads compressed paths (if compression=none is not set),
 	// we simply can't know if a file exists or not.
-	// Nix uploads /nar/$filehash.nar.$compressionType, not /nar/$narhash.nar.$compressionType,
-	// but we content-address the decompressed contents.
-	// Register a dumb HEAD handler that returns a 404 for all compressed paths.
+	// Nix uploads (and checks for existence of) /nar/$filehash.nar.$compressionType,
+	// not /nar/$narhash.nar.$compressionType (which is what we use)
+	// We content-hash the decompressed contents and discard the compressed uploaded payload,
+	// so there's no way to know if /nar/$filehash.nar.$compressionType was uploaded
+	// This means we will return 404 whenever Nix tries to upload a compressed NAR file
 	// This will cause Nix to unnecessarily upload Narfiles multiple times.
 	// It's not as bad as it sounds, as this only affects multiple Narinfo files
-	// referencing the same Narfile.
-	// Nix first checks the Narinfo files for existence, and doesn't update the Narfile.
-	s.Handler.Head(patternCompressed, func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "Can't know for compressed Narfiles", http.StatusNotFound)
-	})
+	// referencing the same Narfile (and Nix might locally cache the fact it already uploaded
+	// that Narfile)
 
 	s.Handler.Put(patternPlain, s.handleNar)
 	s.Handler.Put(patternCompressed, s.handleNar)
@@ -215,23 +222,44 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		narhashStr := chi.URLParam(r, "narhash")
 		narhash, err := nixbase32.DecodeString(narhashStr)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("handle-narinfo: %v", err), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("Unable to decode narHash %v: %v", narhashStr, err), http.StatusBadRequest)
 		}
-		r, size, err := s.blobStore.GetBlob(r.Context(), narhash)
+		blobReader, size, err := s.blobStore.GetBlob(r.Context(), narhash)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if err == store.ErrNotFound {
 				status = http.StatusNotFound
 			}
-			http.Error(w, fmt.Sprintf("GET handle-nar: %v", err), status)
+			http.Error(w, fmt.Sprintf("Error retrieving narfile with hash %v: %v", narhashStr, err), status)
 			return
 		}
-		defer r.Close()
+		defer blobReader.Close()
+
+		// check compression suffix, and serve a compressed file depending on that.
+		compressionSuffix := chi.URLParam(r, "compressionSuffix")
+
+		var writer io.Writer = w
+		if compressionSuffix != "" {
+			// We only support zstd, gzip, brotli and none, as the others are way too CPU-intensive,
+			// and never advertised anyways.
+			compressedWriter, err := compression.NewCompressorBySuffix(w, compressionSuffix)
+			if err != nil {
+				// We still serve a 404 (as Nix might send a HEAD request while trying to upload xz, for example)
+				http.Error(w, fmt.Sprintf("Unsupported compression suffix: %v", compressionSuffix), http.StatusNotFound)
+			}
+			defer compressedWriter.Close()
+			writer = compressedWriter
+		}
 
 		w.Header().Add("Content-Type", "application/x-nix-nar")
 		w.Header().Add("Content-Length", fmt.Sprintf("%d", size))
-		io.Copy(w, r)
 
+		_, err = io.Copy(writer, blobReader)
+
+		if err != nil {
+			log.Errorf("error sending narfile to client: %v", err)
+			return
+		}
 		return
 	}
 

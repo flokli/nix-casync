@@ -10,8 +10,30 @@ import (
 	"github.com/datadog/zstd"
 	"github.com/pierrec/lz4"
 	"github.com/ulikunitz/xz"
-	"github.com/ulikunitz/xz/lzma"
 )
+
+var (
+	// CompressionSuffixToType maps from the compression suffix Nix uses when uploading to the compression type
+	CompressionSuffixToType = map[string]string{
+		"":      "none",
+		".br":   "br",
+		".bz2":  "bzip2",
+		".gz":   "gzip", // keep in mind nix defaults to gzip if Compression: field is unset or empty string
+		".lz4":  "lz4",
+		".lzip": "lzip",
+		".xz":   "xz",
+		".zst":  "zstd",
+	}
+)
+
+func CompressionTypeToSuffix(compressionType string) (string, error) {
+	for compressionSuffix, aCompressionType := range CompressionSuffixToType {
+		if aCompressionType == compressionType {
+			return compressionSuffix, nil
+		}
+	}
+	return "", fmt.Errorf("unknown compression type: %v", compressionType)
+}
 
 // NewDecompressor decompresses contents from an io.Reader
 // The compression type needs to be specified upfront.
@@ -36,12 +58,6 @@ func NewDecompressor(r io.Reader, compressionType string) (io.ReadCloser, error)
 		return gzipReader, nil
 	case "lz4":
 		return io.NopCloser(lz4.NewReader(r)), nil
-	case "lzma":
-		lzmaReader, err := lzma.NewReader(r)
-		if err != nil {
-			return nil, err
-		}
-		return io.NopCloser(lzmaReader), nil
 	case "xz":
 		xzReader, err := xz.NewReader(r)
 		if err != nil {
@@ -52,22 +68,15 @@ func NewDecompressor(r io.Reader, compressionType string) (io.ReadCloser, error)
 		return zstd.NewReader(r), nil
 	}
 
-	// compress, grzip, lzrzip, lzip, lzop
+	// compress, grzip, lzrzip, lzip, lzop, lzma
 	return nil, fmt.Errorf("unsupported compression type: %v", compressionType)
 }
 
 func NewDecompressorBySuffix(r io.Reader, compressionSuffix string) (io.ReadCloser, error) {
-	if compressionSuffix == "" || compressionSuffix[1:] == "" {
-		return NewDecompressor(r, "none")
+	// try to lookup the compression type from compressionSuffixToType
+	if compressionType, ok := CompressionSuffixToType[compressionSuffix]; ok {
+		return NewDecompressor(r, compressionType)
 	}
-	if compressionSuffix[1:] == "zst" {
-		return NewDecompressor(r, "zstd")
-	}
-	if compressionSuffix[1:] == "gz" {
-		return NewDecompressor(r, "gzip")
-	}
-	if compressionSuffix[1:] == "bz2" {
-		return NewDecompressor(r, "bzip2")
-	}
-	return NewDecompressor(r, compressionSuffix[1:])
+
+	return nil, fmt.Errorf("unknown compression suffix: %v", compressionSuffix)
 }

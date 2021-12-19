@@ -38,6 +38,17 @@ func TestFileStore(t *testing.T) {
 	testMetadataStore(t, fileStore)
 }
 
+func TestDatabaseStore(t *testing.T) {
+	databaseStore, err := NewDatabaseStore(context.Background(), "sqlite3", ":memory:?cache=shared")
+	if err != nil {
+		panic(err)
+	}
+	t.Cleanup(func() {
+		databaseStore.Close()
+	})
+	testMetadataStore(t, databaseStore)
+}
+
 type testDataT map[string]struct {
 	pathInfo *PathInfo
 	narMeta  *NarMeta

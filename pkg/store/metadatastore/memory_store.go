@@ -3,10 +3,10 @@ package metadatastore
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"os"
 	"sync"
-
-	"github.com/flokli/nix-casync/pkg/store"
 )
 
 // MemoryStore implements MetadataStore
@@ -37,7 +37,7 @@ func (ms *MemoryStore) GetPathInfo(ctx context.Context, outputHash []byte) (*Pat
 	if ok {
 		return &v, nil
 	}
-	return nil, store.ErrNotFound
+	return nil, os.ErrNotExist
 }
 
 func (ms *MemoryStore) PutPathInfo(ctx context.Context, pathinfo *PathInfo) error {
@@ -49,8 +49,8 @@ func (ms *MemoryStore) PutPathInfo(ctx context.Context, pathinfo *PathInfo) erro
 	// foreign key constraint: referred NarMeta needs to exist
 	_, err = ms.GetNarMeta(ctx, pathinfo.NarHash)
 	if err != nil {
-		if err == store.ErrNotFound {
-			return fmt.Errorf("referred nar doesn't exist")
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("referred nar doesn't exist: %w", err)
 		}
 		return err
 	}
@@ -68,7 +68,7 @@ func (ms *MemoryStore) GetNarMeta(ctx context.Context, narHash []byte) (*NarMeta
 	if ok {
 		return &v, nil
 	}
-	return nil, store.ErrNotFound
+	return nil, os.ErrNotExist
 }
 
 func (ms *MemoryStore) PutNarMeta(ctx context.Context, narMeta *NarMeta) error {
@@ -81,8 +81,8 @@ func (ms *MemoryStore) PutNarMeta(ctx context.Context, narMeta *NarMeta) error {
 	for i, reference := range narMeta.References {
 		_, err := ms.GetPathInfo(ctx, reference)
 		if err != nil {
-			if err == store.ErrNotFound {
-				return fmt.Errorf("referred reference %v doesn't exist", narMeta.ReferencesStr[i])
+			if errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("referred reference %v doesn't exist: %w", narMeta.ReferencesStr[i], err)
 			}
 			return err
 		}

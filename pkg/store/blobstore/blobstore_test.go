@@ -8,7 +8,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/flokli/nix-casync/pkg/store"
 	"github.com/numtide/go-nix/nixbase32"
 	"github.com/stretchr/testify/assert"
 )
@@ -66,7 +65,7 @@ func testBlobStore(t *testing.T, blobStore BlobStore) {
 	t.Run("GetBlobNotFound", func(t *testing.T) {
 		_, _, err := blobStore.GetBlob(context.Background(), narhash)
 		if assert.Error(t, err) {
-			assert.Equal(t, store.ErrNotFound, err)
+			assert.ErrorIsf(t, err, os.ErrNotExist, "on a non-existent blob, there should be a os.ErrNotExist in the error chain")
 		}
 	})
 

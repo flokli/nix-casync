@@ -74,7 +74,7 @@ func ParseNarinfo(narinfo *narinfo.NarInfo) (*PathInfo, *NarMeta, error) {
 	for _, referenceStr := range narinfo.References {
 		hashRef, err := nixbase32.DecodeString(referenceStr[0:32])
 		if err != nil {
-			return nil, nil, fmt.Errorf("unable to decode hash %v in reference %v", referenceStr, narinfo.References)
+			return nil, nil, fmt.Errorf("unable to decode hash %v in reference %v: %w", referenceStr, narinfo.References, err)
 		}
 		references = append(references, hashRef)
 	}

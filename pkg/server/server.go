@@ -1,12 +1,13 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 
 	"github.com/flokli/nix-casync/pkg/server/compression"
-	"github.com/flokli/nix-casync/pkg/store"
 	"github.com/flokli/nix-casync/pkg/store/blobstore"
 	"github.com/flokli/nix-casync/pkg/store/metadatastore"
 	"github.com/numtide/go-nix/hash"
@@ -81,7 +82,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		pathInfo, err := s.metadataStore.GetPathInfo(r.Context(), outputhash)
 		if err != nil {
 			status := http.StatusInternalServerError
-			if err == store.ErrNotFound {
+			if errors.Is(err, os.ErrNotExist) {
 				status = http.StatusNotFound
 			}
 			http.Error(w, fmt.Sprintf("Error getting PathInfo: %v", err), status)
@@ -151,7 +152,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 
 		// retrieve the NarMeta
 		narMeta, err := s.metadataStore.GetNarMeta(r.Context(), ni.NarHash.Digest)
-		if err == store.ErrNotFound {
+		if errors.Is(err, os.ErrNotExist) {
 			log.Error("Rejected uploading a .narinfo pointing to a non-existent narhash")
 			http.Error(w, "Narinfo points to non-existent NarHash", http.StatusBadRequest)
 			return
@@ -230,7 +231,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		blobReader, size, err := s.blobStore.GetBlob(r.Context(), narhash)
 		if err != nil {
 			status := http.StatusInternalServerError
-			if err == store.ErrNotFound {
+			if errors.Is(err, os.ErrNotExist) {
 				status = http.StatusNotFound
 			}
 			http.Error(w, fmt.Sprintf("Error retrieving narfile with hash %v: %v", narhashStr, err), status)

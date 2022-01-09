@@ -7,7 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/flokli/nix-casync/pkg/store"
 	"github.com/numtide/go-nix/nar/narinfo"
 	"github.com/stretchr/testify/assert"
 )
@@ -92,7 +91,7 @@ func testMetadataStore(t *testing.T, metadataStore MetadataStore) {
 		t.Run("GetNarMetaNotFound", func(t *testing.T) {
 			_, err := metadataStore.GetNarMeta(context.Background(), tdA.narMeta.NarHash)
 			if assert.Error(t, err) {
-				assert.Equal(t, store.ErrNotFound, err)
+				assert.ErrorIsf(t, err, os.ErrNotExist, "on a non-existent NarMeta, there should be a os.ErrNotExist in the error chain")
 			}
 		})
 
@@ -117,7 +116,7 @@ func testMetadataStore(t *testing.T, metadataStore MetadataStore) {
 		t.Run("GetPathInfoNotFound", func(t *testing.T) {
 			_, err := metadataStore.GetPathInfo(context.Background(), tdA.pathInfo.OutputHash)
 			if assert.Error(t, err) {
-				assert.Equal(t, store.ErrNotFound, err)
+				assert.ErrorIsf(t, err, os.ErrNotExist, "on a non-existent PathInfo, there should be a os.ErrNotExist in the error chain")
 			}
 		})
 

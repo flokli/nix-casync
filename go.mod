@@ -13,6 +13,7 @@ require (
 	github.com/numtide/go-nix v0.0.0-20211215191921-37a8ad2f9e4f
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/sirupsen/logrus v1.8.1
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/ulikunitz/xz v0.5.10
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )

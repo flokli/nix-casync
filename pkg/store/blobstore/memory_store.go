@@ -7,9 +7,8 @@ import (
 	"encoding/hex"
 	"hash"
 	"io"
+	"os"
 	"sync"
-
-	"github.com/flokli/nix-casync/pkg/store"
 )
 
 // MemoryStore implements BlobStore
@@ -45,7 +44,7 @@ func (m *MemoryStore) GetBlob(ctx context.Context, sha256 []byte) (io.ReadCloser
 	if ok {
 		return io.NopCloser(bytes.NewReader(v)), int64(len(v)), nil
 	}
-	return nil, 0, store.ErrNotFound
+	return nil, 0, os.ErrNotExist
 }
 
 // memoryStoreWriter implements WriteCloseHasher

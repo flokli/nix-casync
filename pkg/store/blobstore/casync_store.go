@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/flokli/nix-casync/pkg/store"
 	"github.com/folbricht/desync"
 )
 
@@ -72,9 +71,6 @@ func (c *CasyncStore) GetBlob(ctx context.Context, sha256 []byte) (io.ReadCloser
 	// retrieve .caidx
 	caidx, err := c.localIndexStore.GetIndex(hex.EncodeToString(sha256))
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, 0, store.ErrNotFound
-		}
 		return nil, 0, err
 	}
 

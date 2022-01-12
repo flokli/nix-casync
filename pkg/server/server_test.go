@@ -1,30 +1,24 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/datadog/zstd"
+	"github.com/flokli/nix-casync/pkg/server/compression"
 	"github.com/flokli/nix-casync/pkg/store/blobstore"
 	"github.com/flokli/nix-casync/pkg/store/metadatastore"
+	"github.com/flokli/nix-casync/pkg/util"
+	"github.com/flokli/nix-casync/test"
+	"github.com/numtide/go-nix/nar/narinfo"
 	"github.com/numtide/go-nix/nixbase32"
 	"github.com/stretchr/testify/assert"
 )
-
-// readTestData reads a test file and returns a io.Reader to it
-// if there's an error acessing the file, it panics
-func readTestData(path string) io.ReadSeekCloser {
-	f, err := os.Open(path)
-	if err != nil {
-		panic(err)
-	}
-	return f
-}
 
 // TestHandler tests the handler
 func TestHandler(t *testing.T) {
@@ -34,10 +28,28 @@ func TestHandler(t *testing.T) {
 	defer metadataStore.Close()
 	server := NewServer(blobStore, metadataStore, "zstd", 40)
 
+	testDataT := test.GetTestData()
+
+	tdA, exists := testDataT["a"]
+	if !exists {
+		panic("testData[a] doesn't exist")
+	}
+	tdAOutputHash, err := util.GetHashFromStorePath(tdA.Narinfo.StorePath)
+	if !exists {
+		panic(err)
+	}
+
+	tdB, exists := testDataT["b"]
+	if !exists {
+		panic("testData[b] doesn't exist")
+	}
+	tdBOutputHash, err := util.GetHashFromStorePath(tdB.Narinfo.StorePath)
+	if !exists {
+		panic(err)
+	}
+
 	t.Run("Nar tests", func(t *testing.T) {
-		narhashStr := "0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd"
-		narpath := "/nar/" + narhashStr + ".nar"
-		testFilePath := "../../test/compression_none/nar/" + narhashStr + ".nar"
+		narpath := "/nar/" + nixbase32.EncodeToString(tdA.Narinfo.NarHash.Digest) + ".nar"
 
 		t.Run("GET non-existent .nar", func(t *testing.T) {
 			rr := httptest.NewRecorder()
@@ -50,10 +62,8 @@ func TestHandler(t *testing.T) {
 		})
 
 		t.Run("PUT .nar", func(t *testing.T) {
-			tdr := readTestData(testFilePath)
-			defer tdr.Close()
 			rr := httptest.NewRecorder()
-			req, err := http.NewRequest("PUT", narpath, tdr)
+			req, err := http.NewRequest("PUT", narpath, bytes.NewReader(tdA.NarContents))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -71,13 +81,6 @@ func TestHandler(t *testing.T) {
 			assert.Equal(t, []byte{}, actualContents)
 		})
 
-		tdr := readTestData(testFilePath)
-		defer tdr.Close()
-		expectedContents, err := io.ReadAll(tdr)
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		t.Run("GET .nar", func(t *testing.T) {
 			rr := httptest.NewRecorder()
 			req, err := http.NewRequest("GET", narpath, nil)
@@ -87,7 +90,7 @@ func TestHandler(t *testing.T) {
 			server.Handler.ServeHTTP(rr, req)
 			assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
 			assert.Equal(t, []string{"application/x-nix-nar"}, rr.Result().Header["Content-Type"])
-			assert.Equal(t, []string{fmt.Sprintf("%d", len(expectedContents))}, rr.Result().Header["Content-Length"])
+			assert.Equal(t, []string{fmt.Sprintf("%d", tdA.Narinfo.NarSize)}, rr.Result().Header["Content-Length"])
 
 			// read in the retrieved body
 			actualContents, err := io.ReadAll(rr.Result().Body)
@@ -95,7 +98,7 @@ func TestHandler(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			assert.Equal(t, expectedContents, actualContents)
+			assert.Equal(t, tdA.NarContents, actualContents)
 		})
 
 		// get compressed .nar, which should match the uncompressed .nar after decompressing with zstd
@@ -108,46 +111,72 @@ func TestHandler(t *testing.T) {
 			server.Handler.ServeHTTP(rr, req)
 			assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
 			assert.Equal(t, []string{"application/x-nix-nar"}, rr.Result().Header["Content-Type"])
-			assert.Equal(t, []string{fmt.Sprintf("%d", len(expectedContents))}, rr.Result().Header["Content-Length"])
+			// We don't send the Content-Length header here, as we compress on the fly and don't know upfront
+
+			// read the body into a buffer
+			buf, err := io.ReadAll(rr.Result().Body)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			// read in the retrieved body
-			zstdReader := zstd.NewReader(rr.Result().Body)
+			zstdReader := zstd.NewReader(bytes.NewReader(buf))
 			defer zstdReader.Close()
 			actualContents, err := io.ReadAll(zstdReader)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			assert.Equal(t, expectedContents, actualContents)
+			// decompressed, it should look like the Nar we initially wrote
+			assert.Equal(t, tdA.NarContents, actualContents)
 		})
 
-		// TODO: once we support removing .nar files, remove it before re-uploading
+		// TODO: remove Nar file to ensure we don't just no-op the upload
+		// blobStore.DropAll(context.Background())
+
 		t.Run("PUT compressed .nar", func(t *testing.T) {
-			narhashStr := "0mw6qwsrz35cck0wnjgmfnjzwnjbspsyihnfkng38kxghdc9k9zd"
-			narhash := nixbase32.MustDecodeString(narhashStr)
-			narpathXz := "/nar/1qv1l5zhzgqc66l0vjy2aw7z50fhga16anlyn2c1yp975aafmz93.nar.xz"
-			narTestFilePath := "../../test/compression_xz" + narpathXz
-			// upload compressed nar file
-			tdr := readTestData(narTestFilePath)
-			defer tdr.Close()
+			// What name we upload it as doesn't really matter (we still use the narhash here, even though Nix would use the file hash)
+			// The only thing that matters is the extension.
+			narpathZstd := "/nar/" + nixbase32.EncodeToString(tdA.Narinfo.NarHash.Digest) + ".nar.zst"
+
+			// compress the .nar file on the fly, store in nb
+			var b bytes.Buffer
+			wc, err := compression.NewCompressor(&b, "zstd")
+			assert.NoError(t, err)
+			wc.Write(tdA.NarContents)
+			wc.Close()
+
+			//fmt.Printf("!!!!==buffer contains %d elements.\n", len(b.Bytes()))
+
 			rr := httptest.NewRecorder()
-			req, err := http.NewRequest("PUT", narpathXz, tdr)
+			req, err := http.NewRequest("PUT", narpathZstd, bytes.NewReader(b.Bytes()))
 			assert.NoError(t, err)
 
 			server.Handler.ServeHTTP(rr, req)
 			assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
 
 			// check it exists in the store
-			narMeta, err := metadataStore.GetNarMeta(context.Background(), narhash)
+			narMeta, err := metadataStore.GetNarMeta(context.Background(), tdA.Narinfo.NarHash.Digest)
 			assert.NoError(t, err)
 			assert.NotEqual(t, 0, narMeta.Size)
 		})
 	})
 
 	t.Run("Narinfo tests", func(t *testing.T) {
-		outputhashStr := "dr76fsw7d6ws3pymafx0w0sn4rzbw7c9"
-		testFilePath := "../../test/compression_none/" + outputhashStr + ".narinfo"
-		path := "/" + outputhashStr + ".narinfo"
+		path := "/" + nixbase32.EncodeToString(tdAOutputHash) + ".narinfo"
+
+		// synthesize a minimal narinfo for a compressed version
+		// This is what we get served from the handler,
+		// as zstd compression is configured.
+		// We also use it later in the test to upload a compressed version.
+		smallNarinfo := tdA.Narinfo
+		smallNarinfo.URL = smallNarinfo.URL + ".zst"
+
+		smallNarinfo.FileHash = nil
+		smallNarinfo.FileSize = 0
+		smallNarinfo.Compression = "zstd"
+		b := bytes.NewBufferString(smallNarinfo.String())
+		smallNarinfoContents := b.Bytes()
 
 		t.Run("GET non-existent .narinfo", func(t *testing.T) {
 			rr := httptest.NewRecorder()
@@ -160,11 +189,8 @@ func TestHandler(t *testing.T) {
 		})
 
 		t.Run("PUT .narinfo", func(t *testing.T) {
-			tdr := readTestData(testFilePath)
-			defer tdr.Close()
-
 			rr := httptest.NewRecorder()
-			req, err := http.NewRequest("PUT", path, tdr)
+			req, err := http.NewRequest("PUT", path, bytes.NewReader(tdA.NarinfoContents))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -180,36 +206,8 @@ func TestHandler(t *testing.T) {
 			assert.Equal(t, []byte{}, actualContents)
 		})
 
-		t.Run("PUT compressed .narinfo", func(t *testing.T) {
-			testFileCompressedPath := "../../test/compression_xz/" + outputhashStr + ".narinfo"
-			tdr := readTestData(testFileCompressedPath)
-			defer tdr.Close()
-
-			rr := httptest.NewRecorder()
-			req, err := http.NewRequest("PUT", path, tdr)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			server.Handler.ServeHTTP(rr, req)
-			assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
-
-			// expect body to be empty
-			actualContents, err := io.ReadAll(rr.Result().Body)
-			if err != nil {
-				t.Fatal(err)
-			}
-			assert.Equal(t, []byte{}, actualContents)
-		})
-
-		// read in the text fixture
-		tdr := readTestData("../../test/compression_none/" + outputhashStr + "_returned_zstd.narinfo")
-		defer tdr.Close()
-		expectedContents, err := io.ReadAll(tdr)
-		if err != nil {
-			t.Fatal(err)
-		}
-
+		// when we retrieve it back, it should be served compressed
+		// (as we initialize the handler with zstd compression)
 		t.Run("GET .narinfo", func(t *testing.T) {
 			rr := httptest.NewRecorder()
 			req, err := http.NewRequest("GET", path, nil)
@@ -219,7 +217,7 @@ func TestHandler(t *testing.T) {
 			server.Handler.ServeHTTP(rr, req)
 			assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
 			assert.Equal(t, []string{"text/x-nix-narinfo"}, rr.Result().Header["Content-Type"])
-			assert.Equal(t, []string{fmt.Sprintf("%d", len(expectedContents))}, rr.Result().Header["Content-Length"])
+			assert.Equal(t, []string{fmt.Sprintf("%d", len(smallNarinfoContents))}, rr.Result().Header["Content-Length"])
 
 			// read in the retrieved body
 			actualContents, err := io.ReadAll(rr.Result().Body)
@@ -227,7 +225,104 @@ func TestHandler(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			assert.Equal(t, expectedContents, actualContents)
+			assert.Equal(t, smallNarinfoContents, actualContents)
 		})
+
+		t.Run("PUT .narinfo referring to compressed NAR", func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			req, err := http.NewRequest("PUT", path, bytes.NewReader(smallNarinfoContents))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			server.Handler.ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+
+			// expect body to be empty
+			actualContents, err := io.ReadAll(rr.Result().Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, []byte{}, actualContents)
+		})
+
+		// when we retrieve it back, it should still look like the minimal narinfo
+		t.Run("GET .narinfo", func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			req, err := http.NewRequest("GET", path, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			server.Handler.ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+			assert.Equal(t, []string{"text/x-nix-narinfo"}, rr.Result().Header["Content-Type"])
+			assert.Equal(t, []string{fmt.Sprintf("%d", len(smallNarinfoContents))}, rr.Result().Header["Content-Length"])
+
+			// read in the retrieved body
+			actualContents, err := io.ReadAll(rr.Result().Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			assert.Equal(t, smallNarinfoContents, actualContents)
+		})
+
+		t.Run("PUT .nar for B", func(t *testing.T) {
+			narpath := "/nar/" + nixbase32.EncodeToString(tdB.Narinfo.NarHash.Digest) + ".nar"
+			rr := httptest.NewRecorder()
+			req, err := http.NewRequest("PUT", narpath, bytes.NewReader(tdB.NarContents))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			server.Handler.ServeHTTP(rr, req)
+
+			// expect status to be ok
+			assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+
+			// expect body to be empty
+			actualContents, err := io.ReadAll(rr.Result().Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, []byte{}, actualContents)
+		})
+	})
+
+	bNarinfoPath := "/" + nixbase32.EncodeToString(tdBOutputHash) + ".narinfo"
+	t.Run("PUT .narinfo for B", func(t *testing.T) {
+
+		rr := httptest.NewRecorder()
+		req, err := http.NewRequest("PUT", bNarinfoPath, bytes.NewReader(tdB.NarinfoContents))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		server.Handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+
+		// expect body to be empty
+		actualContents, err := io.ReadAll(rr.Result().Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, []byte{}, actualContents)
+	})
+
+	t.Run("GET .narinfo for B", func(t *testing.T) {
+		rr := httptest.NewRecorder()
+		req, err := http.NewRequest("GET", bNarinfoPath, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		server.Handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+
+		// parse the .narinfo file we get back
+		ni, err := narinfo.Parse(rr.Result().Body)
+		assert.NoError(t, err)
+
+		// assert references are preserved
+		assert.Equal(t, tdB.Narinfo.References, ni.References)
 	})
 }

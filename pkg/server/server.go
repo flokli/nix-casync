@@ -225,7 +225,11 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Add("Content-Type", "application/x-nix-nar")
-		w.Header().Add("Content-Length", fmt.Sprintf("%d", size))
+
+		// We can only advertise a content-length when we serve uncompressed Narfiles
+		if compressionSuffix == "" {
+			w.Header().Add("Content-Length", fmt.Sprintf("%d", size))
+		}
 
 		_, err = io.Copy(writer, blobReader)
 

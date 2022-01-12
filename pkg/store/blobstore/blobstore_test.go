@@ -82,8 +82,6 @@ func testBlobStore(t *testing.T, blobStore BlobStore) {
 		assert.Equal(t, narSize, n)
 		assert.NoError(t, w.Close())
 
-		fmt.Printf("%v", w.Sha256Sum())
-
 		assert.Equal(t, narhash, w.Sha256Sum(), "narhash should be correctly calculated")
 	})
 
@@ -99,8 +97,6 @@ func testBlobStore(t *testing.T, blobStore BlobStore) {
 
 		assert.Equal(t, narSize, n)
 		assert.NoError(t, w.Close())
-
-		fmt.Printf("%x\n", w.Sha256Sum())
 
 		assert.Equal(t, narhash, w.Sha256Sum(), "narhash should still be correctly calculated")
 	})

@@ -15,6 +15,7 @@ import (
 	"github.com/flokli/nix-casync/pkg/store/metadatastore"
 	"github.com/flokli/nix-casync/pkg/util"
 	"github.com/flokli/nix-casync/test"
+	"github.com/numtide/go-nix/nar/narinfo"
 	"github.com/numtide/go-nix/nixbase32"
 	"github.com/stretchr/testify/assert"
 )
@@ -34,6 +35,15 @@ func TestHandler(t *testing.T) {
 		panic("testData[a] doesn't exist")
 	}
 	tdAOutputHash, err := util.GetHashFromStorePath(tdA.Narinfo.StorePath)
+	if !exists {
+		panic(err)
+	}
+
+	tdB, exists := testDataT["b"]
+	if !exists {
+		panic("testData[b] doesn't exist")
+	}
+	tdBOutputHash, err := util.GetHashFromStorePath(tdB.Narinfo.StorePath)
 	if !exists {
 		panic(err)
 	}
@@ -256,5 +266,63 @@ func TestHandler(t *testing.T) {
 
 			assert.Equal(t, smallNarinfoContents, actualContents)
 		})
+
+		t.Run("PUT .nar for B", func(t *testing.T) {
+			narpath := "/nar/" + nixbase32.EncodeToString(tdB.Narinfo.NarHash.Digest) + ".nar"
+			rr := httptest.NewRecorder()
+			req, err := http.NewRequest("PUT", narpath, bytes.NewReader(tdB.NarContents))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			server.Handler.ServeHTTP(rr, req)
+
+			// expect status to be ok
+			assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+
+			// expect body to be empty
+			actualContents, err := io.ReadAll(rr.Result().Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, []byte{}, actualContents)
+		})
+	})
+
+	bNarinfoPath := "/" + nixbase32.EncodeToString(tdBOutputHash) + ".narinfo"
+	t.Run("PUT .narinfo for B", func(t *testing.T) {
+
+		rr := httptest.NewRecorder()
+		req, err := http.NewRequest("PUT", bNarinfoPath, bytes.NewReader(tdB.NarinfoContents))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		server.Handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+
+		// expect body to be empty
+		actualContents, err := io.ReadAll(rr.Result().Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, []byte{}, actualContents)
+	})
+
+	t.Run("GET .narinfo for B", func(t *testing.T) {
+		rr := httptest.NewRecorder()
+		req, err := http.NewRequest("GET", bNarinfoPath, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		server.Handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
+
+		// parse the .narinfo file we get back
+		ni, err := narinfo.Parse(rr.Result().Body)
+		assert.NoError(t, err)
+
+		// assert references are preserved
+		assert.Equal(t, tdB.Narinfo.References, ni.References)
 	})
 }

@@ -2,12 +2,11 @@ package metadatastore
 
 import (
 	"context"
-	"io"
 	"io/ioutil"
 	"os"
 	"testing"
 
-	"github.com/numtide/go-nix/nar/narinfo"
+	"github.com/flokli/nix-casync/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,103 +36,74 @@ func TestFileStore(t *testing.T) {
 	testMetadataStore(t, fileStore)
 }
 
-type testDataT map[string]struct {
-	pathInfo *PathInfo
-	narMeta  *NarMeta
-}
-
 // testMetadataStore runs all metadata store tests against the passed store
 func testMetadataStore(t *testing.T, metadataStore MetadataStore) {
-	// assemble some test data.
-	// a is a simple store path without any references.
-	// b has c in its references (created by //test/generator/default.nix)
-	testData := make(testDataT, 3)
+	testDataT := test.GetTestData()
 
-	for _, testItem := range []struct {
-		name       string
-		outhashStr string
-	}{
-		{name: "a", outhashStr: "dr76fsw7d6ws3pymafx0w0sn4rzbw7c9"},
-		{name: "b", outhashStr: "7cwx623saf2h3z23wsn26icszvskk4iy"},
-		{name: "c", outhashStr: "x236iz9shqypbnm64qgqisz0jr4wmj2b"},
-	} {
-		ni, err := narinfo.Parse(readTestData("../../../test/compression_none/" + testItem.outhashStr + ".narinfo"))
-		if err != nil {
-			panic(err)
-		}
-		pathInfo, narMeta, err := ParseNarinfo(ni)
-		if err != nil {
-			panic(err)
-		}
-		testData[testItem.name] = struct {
-			pathInfo *PathInfo
-			narMeta  *NarMeta
-		}{
-			pathInfo: pathInfo,
-			narMeta:  narMeta,
-		}
-	}
-
-	tdA, exists := testData["a"]
+	tdA, exists := testDataT["a"]
 	if !exists {
 		panic("testData[a] doesn't exist")
 	}
-	tdB, exists := testData["b"]
+	tdAPathInfo, tdANarMeta, err := ParseNarinfo(tdA.Narinfo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tdB, exists := testDataT["b"]
 	if !exists {
 		panic("testData[b] doesn't exist")
 	}
-	tdC, exists := testData["c"]
-	if !exists {
-		panic("testData[c] doesn't exist")
+	tdBPathInfo, tdBNarMeta, err := ParseNarinfo(tdB.Narinfo)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	t.Run("NarMeta", func(t *testing.T) {
 		t.Run("GetNarMetaNotFound", func(t *testing.T) {
-			_, err := metadataStore.GetNarMeta(context.Background(), tdA.narMeta.NarHash)
+			_, err := metadataStore.GetNarMeta(context.Background(), tdANarMeta.NarHash)
 			if assert.Error(t, err) {
 				assert.ErrorIsf(t, err, os.ErrNotExist, "on a non-existent NarMeta, there should be a os.ErrNotExist in the error chain")
 			}
 		})
 
 		t.Run("PutNarMeta", func(t *testing.T) {
-			err := metadataStore.PutNarMeta(context.Background(), tdA.narMeta)
+			err := metadataStore.PutNarMeta(context.Background(), tdANarMeta)
 			assert.NoError(t, err)
 		})
 
 		t.Run("PutNarMeta again", func(t *testing.T) {
-			err := metadataStore.PutNarMeta(context.Background(), tdA.narMeta)
+			err := metadataStore.PutNarMeta(context.Background(), tdANarMeta)
 			assert.NoError(t, err)
 		})
 
 		t.Run("GetNarMeta", func(t *testing.T) {
-			narMeta, err := metadataStore.GetNarMeta(context.Background(), tdA.narMeta.NarHash)
+			narMeta, err := metadataStore.GetNarMeta(context.Background(), tdANarMeta.NarHash)
 			assert.NoError(t, err)
-			assert.Equal(t, *tdA.narMeta, *narMeta)
+			assert.Equal(t, *tdANarMeta, *narMeta)
 		})
 	})
 
 	t.Run("PathInfo", func(t *testing.T) {
 		t.Run("GetPathInfoNotFound", func(t *testing.T) {
-			_, err := metadataStore.GetPathInfo(context.Background(), tdA.pathInfo.OutputHash)
+			_, err := metadataStore.GetPathInfo(context.Background(), tdAPathInfo.OutputHash)
 			if assert.Error(t, err) {
 				assert.ErrorIsf(t, err, os.ErrNotExist, "on a non-existent PathInfo, there should be a os.ErrNotExist in the error chain")
 			}
 		})
 
 		t.Run("PutPathInfo", func(t *testing.T) {
-			err := metadataStore.PutPathInfo(context.Background(), tdA.pathInfo)
+			err := metadataStore.PutPathInfo(context.Background(), tdAPathInfo)
 			assert.NoError(t, err)
 		})
 
 		t.Run("PutPathInfo again", func(t *testing.T) {
-			err := metadataStore.PutPathInfo(context.Background(), tdA.pathInfo)
+			err := metadataStore.PutPathInfo(context.Background(), tdAPathInfo)
 			assert.NoError(t, err)
 		})
 
 		t.Run("GetPathInfo", func(t *testing.T) {
-			pathInfo, err := metadataStore.GetPathInfo(context.Background(), tdA.pathInfo.OutputHash)
+			pathInfo, err := metadataStore.GetPathInfo(context.Background(), tdAPathInfo.OutputHash)
 			if assert.NoError(t, err) {
-				assert.Equal(t, *tdA.pathInfo, *pathInfo)
+				assert.Equal(t, *tdAPathInfo, *pathInfo)
 			}
 		})
 	})
@@ -144,15 +114,15 @@ func testMetadataStore(t *testing.T, metadataStore MetadataStore) {
 			panic(err)
 		}
 
-		// Test it's not possible to upload C PathInfo without uploading C NarInfo first
+		// Test it's not possible to upload A PathInfo without uploading A NarMeta first
 		t.Run("require NarMeta first", func(t *testing.T) {
-			err = metadataStore.PutPathInfo(context.Background(), tdC.pathInfo)
+			err = metadataStore.PutPathInfo(context.Background(), tdAPathInfo)
 			assert.Error(t, err)
 
-			err = metadataStore.PutNarMeta(context.Background(), tdC.narMeta)
+			err = metadataStore.PutNarMeta(context.Background(), tdANarMeta)
 			assert.NoError(t, err)
 
-			err = metadataStore.PutPathInfo(context.Background(), tdC.pathInfo)
+			err = metadataStore.PutPathInfo(context.Background(), tdAPathInfo)
 			assert.NoError(t, err)
 		})
 
@@ -160,25 +130,25 @@ func testMetadataStore(t *testing.T, metadataStore MetadataStore) {
 		if err != nil {
 			panic(err)
 		}
-		// Try to upload B, which refers to C (which is not uploaded) should fail,
-		// until we upload C (and it's pathinfo)
+		// Try to upload B, which refers to A (which is not uploaded) should fail,
+		// until we upload A (and it's pathinfo)
 		t.Run("require References to be uploaded first", func(t *testing.T) {
 			// upload NarMeta for B
-			err = metadataStore.PutNarMeta(context.Background(), tdB.narMeta)
+			err = metadataStore.PutNarMeta(context.Background(), tdBNarMeta)
 			assert.Error(t, err, "uploading NarMeta with references to non-existing PathInfo should fail")
 
-			// upload PathInfo for C, which should also fail without NarMeta for C
-			err = metadataStore.PutPathInfo(context.Background(), tdC.pathInfo)
+			// upload PathInfo for A, which should also fail without NarMeta for A
+			err = metadataStore.PutPathInfo(context.Background(), tdAPathInfo)
 			assert.Error(t, err, "uploading PathInfo with references to non-existing NarMeta should fail")
 
-			// now try to upload NarMeta for C, then PathInfo for C, then NarMeta for B, then PathInfo for B, which should succeed
-			err = metadataStore.PutNarMeta(context.Background(), tdC.narMeta)
+			// now try to upload NarMeta for A, then PathInfo for A, then NarMeta for B, then PathInfo for B, which should succeed
+			err = metadataStore.PutNarMeta(context.Background(), tdANarMeta)
 			assert.NoError(t, err)
-			err = metadataStore.PutPathInfo(context.Background(), tdC.pathInfo)
+			err = metadataStore.PutPathInfo(context.Background(), tdAPathInfo)
 			assert.NoError(t, err)
-			err = metadataStore.PutNarMeta(context.Background(), tdB.narMeta)
+			err = metadataStore.PutNarMeta(context.Background(), tdBNarMeta)
 			assert.NoError(t, err)
-			err = metadataStore.PutPathInfo(context.Background(), tdB.pathInfo)
+			err = metadataStore.PutPathInfo(context.Background(), tdBPathInfo)
 			assert.NoError(t, err)
 		})
 
@@ -186,27 +156,17 @@ func testMetadataStore(t *testing.T, metadataStore MetadataStore) {
 		if err != nil {
 			panic(err)
 		}
-		// upload NarMeta for C, then PathInfo for C, then a broken NarMeta for B
+		// upload NarMeta for A, then PathInfo for A, then a broken NarMeta for B
 		t.Run("PutNarMeta with broken inconsistent references", func(t *testing.T) {
-			err = metadataStore.PutNarMeta(context.Background(), tdC.narMeta)
+			err = metadataStore.PutNarMeta(context.Background(), tdANarMeta)
 			assert.NoError(t, err)
-			err = metadataStore.PutPathInfo(context.Background(), tdC.pathInfo)
+			err = metadataStore.PutPathInfo(context.Background(), tdAPathInfo)
 			assert.NoError(t, err)
 
-			brokenNarMeta := *tdB.narMeta
+			brokenNarMeta := *tdBNarMeta
 			brokenNarMeta.References = [][]byte{}
 			err = metadataStore.PutNarMeta(context.Background(), &brokenNarMeta)
 			assert.Error(t, err, "uploading NarMeta with inconsistent References[Str] should fail")
 		})
 	})
-}
-
-// readTestData reads a test file and returns a io.Reader to it
-// if there's an error acessing the file, it panics
-func readTestData(path string) io.ReadSeekCloser {
-	f, err := os.Open(path)
-	if err != nil {
-		panic(err)
-	}
-	return f
 }

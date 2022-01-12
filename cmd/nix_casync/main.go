@@ -21,6 +21,7 @@ var CLI struct {
 		NarCompression string `name:"nar-compression" help:"The compression algorithm to advertise .nar files with (zstd,gzip,brotli,none)" enum:"zstd,gzip,brotli,none" type:"string" default:"zstd"`
 		ListenAddr     string `name:"listen-addr" help:"The address this service listens on" type:"string" default:"[::]:9000"`
 		Priority       int    `name:"priority" help:"What priority to advertise in nix-cache-info. Defaults to 40." type:"int" default:40`
+		AvgChunkSize   int    `name:"avg-chunk-size" help:"The average chunking size to use when chunking NAR files, in bytes. Max is 4 times that, Min is a quarter of this value." type:"int" default:65536`
 	} `cmd serve:"Serve a local nix cache."`
 }
 
@@ -31,7 +32,7 @@ func main() {
 		// initialize casync store
 		castrPath := path.Join(CLI.Serve.CachePath, "castr")
 		caibxPath := path.Join(CLI.Serve.CachePath, "caibx")
-		blobStore, err := blobstore.NewCasyncStore(castrPath, caibxPath) // TODO: ask for more parameters?
+		blobStore, err := blobstore.NewCasyncStore(castrPath, caibxPath, CLI.Serve.AvgChunkSize)
 		if err != nil {
 			log.Fatal(err)
 		}

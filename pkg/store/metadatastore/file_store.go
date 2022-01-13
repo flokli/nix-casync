@@ -2,7 +2,6 @@ package metadatastore
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +9,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+
+	"github.com/numtide/go-nix/nixbase32"
 )
 
 // FileStore implements MetadataStore
@@ -38,12 +39,12 @@ func NewFileStore(baseDirectory string) (*FileStore, error) {
 }
 
 func (fs *FileStore) pathInfoPath(outputHash []byte) string {
-	encodedHash := hex.EncodeToString(outputHash)
+	encodedHash := nixbase32.EncodeToString(outputHash)
 	return path.Join(fs.pathInfoDirectory, encodedHash[:4], encodedHash+".json")
 }
 
 func (fs *FileStore) narMetaPath(narHash []byte) string {
-	encodedHash := hex.EncodeToString(narHash)
+	encodedHash := nixbase32.EncodeToString(narHash)
 	return path.Join(fs.narMetaDirectory, encodedHash[:4], encodedHash+".json")
 }
 

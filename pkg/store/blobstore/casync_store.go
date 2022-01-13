@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"io"
 	"os"
+	"runtime"
 
 	"github.com/folbricht/desync"
 )
@@ -46,13 +47,17 @@ func NewCasyncStore(localStoreDir, localIndexStoreDir string, avgChunkSize int) 
 		return nil, err
 	}
 
+	concurrency := runtime.NumCPU()
+	if concurrency > 4 {
+		concurrency = 4
+	}
+
 	return &CasyncStore{
 		localStore:      localStore,
 		localIndexStore: localIndexStore,
-		concurrency:     1, // TODO: make configurable
+		concurrency:     concurrency,
 
 		// values stolen from chunker_test.go
-		// TODO: make configurable
 		chunkSizeAvgDefault: uint64(avgChunkSize),
 		chunkSizeMinDefault: uint64(avgChunkSize) / 4,
 		chunkSizeMaxDefault: uint64(avgChunkSize) * 4,

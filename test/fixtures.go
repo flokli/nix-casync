@@ -21,6 +21,12 @@ var bNarinfoContents []byte
 //go:embed nar/0rcdxyw7kjpxshv7wb1am0nvjfjbjq67cvrc8dmbsy1slc2ycbxp.nar
 var bNarContents []byte
 
+//go:embed qp5h1cjd5ykcl4hyvsjhrlv68bbx8fan.narinfo
+var cNarinfoContents []byte
+
+//go:embed nar/0z2vk40phzzgsg14516mfs79l9fvl276b993mlqlb4rf0fd7hnwp.nar
+var cNarContents []byte
+
 type TestData struct {
 	NarinfoContents []byte
 	Narinfo         *narinfo.NarInfo
@@ -30,9 +36,10 @@ type TestData struct {
 type TestDataT map[string]TestData
 
 // GetTestData returns testdata from //test
-// it's a map with two elements, storing two store paths in a Nix store.
+// it's a map with the following store paths:
 // a is a store path without any references.
 // b refers to it.
+// c contains a self-reference.
 func GetTestData() TestDataT {
 	testDataT := make(TestDataT, 2)
 	for _, item := range []struct {
@@ -42,6 +49,7 @@ func GetTestData() TestDataT {
 	}{
 		{name: "a", narinfoContents: aNarinfoContents, narContents: aNarContents},
 		{name: "b", narinfoContents: bNarinfoContents, narContents: bNarContents},
+		{name: "c", narinfoContents: cNarinfoContents, narContents: cNarContents},
 	} {
 		// parse narinfo file
 		narinfo, err := narinfo.Parse(bytes.NewReader(item.narinfoContents))

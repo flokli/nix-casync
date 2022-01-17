@@ -6,12 +6,17 @@ let
     Hello, World!
   '';
 in
-stdenv.mkDerivation {
-  name = "hello";
-  dontUnpack = true;
-  dontBuild = true;
-  installPhase = ''
-    mkdir -p $out
-    ln -sfn ${txt} $out/txt
+{
+  b = stdenv.mkDerivation {
+    name = "hello";
+    dontUnpack = true;
+    dontBuild = true;
+    installPhase = ''
+      mkdir -p $out
+      ln -sfn ${txt} $out/txt
+    '';
+  };
+  c = writeText "self" ''
+    ${placeholder "out"}
   '';
 }

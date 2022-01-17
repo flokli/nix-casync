@@ -146,7 +146,12 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		if len(narMeta.References) == 0 && len(sentNarMeta.References) != 0 {
 			narMeta.ReferencesStr = sentNarMeta.ReferencesStr
 			narMeta.References = sentNarMeta.References
-			s.metadataStore.PutNarMeta(r.Context(), narMeta)
+			err = s.metadataStore.PutNarMeta(r.Context(), narMeta)
+			if err != nil {
+				log.Errorf("Failed to update NarMeta with References from pathinfo %v: %v", sentPathInfo.Name, err)
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
 		}
 
 		// Do full comparison of NarMeta, including references

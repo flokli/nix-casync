@@ -264,18 +264,27 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Error closing blobWriter: %v", err), http.StatusInternalServerError)
 		}
 
-		// Store NarMeta
-		narMeta := &metadatastore.NarMeta{
-			NarHash: blobWriter.Sha256Sum(),
-			Size:    blobWriter.BytesWritten(),
-
-			// TODO: Scan for references, add them here instead of filling on the first .narinfo file upload
-		}
-		err = s.metadataStore.PutNarMeta(r.Context(), narMeta)
+		// Check if that NarMeta already exists
+		_, err = s.metadataStore.GetNarMeta(r.Context(), blobWriter.Sha256Sum())
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Error putting NarMeta: %v", err), http.StatusInternalServerError)
+			if !errors.Is(err, os.ErrNotExist) {
+				http.Error(w, fmt.Sprintf("Error checking for existing NarMeta: %v", err), http.StatusInternalServerError)
+				return
+			}
+			// We don't have this NarMeta yet, store it.
+			narMeta := &metadatastore.NarMeta{
+				NarHash: blobWriter.Sha256Sum(),
+				Size:    blobWriter.BytesWritten(),
+				// TODO: Scan for references, add them here instead of filling on the first .narinfo file upload
+			}
+			err = s.metadataStore.PutNarMeta(r.Context(), narMeta)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Error putting NarMeta: %v", err), http.StatusInternalServerError)
+				return
+			}
 		}
 
+		// We already had that NarMeta, nothing to be done
 		return
 	}
 

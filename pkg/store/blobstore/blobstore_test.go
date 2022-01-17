@@ -32,7 +32,7 @@ func TestCasyncStore(t *testing.T) {
 	})
 
 	// init casync store
-	caStore, err := NewCasyncStore(castrDir, caidxDir)
+	caStore, err := NewCasyncStore(castrDir, caidxDir, 65536)
 	if err != nil {
 		panic(err)
 	}

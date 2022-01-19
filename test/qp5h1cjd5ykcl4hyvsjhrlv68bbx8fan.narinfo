@@ -1,0 +1,9 @@
+StorePath: /nix/store/qp5h1cjd5ykcl4hyvsjhrlv68bbx8fan-self
+URL: nar/0z2vk40phzzgsg14516mfs79l9fvl276b993mlqlb4rf0fd7hnwp.nar
+Compression: none
+FileHash: sha256:0z2vk40phzzgsg14516mfs79l9fvl276b993mlqlb4rf0fd7hnwp
+FileSize: 168
+NarHash: sha256:0z2vk40phzzgsg14516mfs79l9fvl276b993mlqlb4rf0fd7hnwp
+NarSize: 168
+References: qp5h1cjd5ykcl4hyvsjhrlv68bbx8fan-self
+Deriver: ms5j3qkm1s8y90jnz557011abscn38v0-self.drv

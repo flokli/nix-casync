@@ -144,6 +144,15 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		// populate NarMeta.References[Str] on .narinfo upload,
 		// if it's empty right now.
 		if len(narMeta.References) == 0 && len(sentNarMeta.References) != 0 {
+			// we need to persist PathInfo first, so PutNarMeta won't trip on the not-yet-existing PathInfo
+
+			err = s.metadataStore.PutPathInfo(r.Context(), sentPathInfo)
+			if err != nil {
+				log.Errorf("Error putting PathInfo: %v", err)
+				http.Error(w, fmt.Sprintf("Error putting PathInfo: %v", err), http.StatusInternalServerError)
+				return
+			}
+
 			narMeta.ReferencesStr = sentNarMeta.ReferencesStr
 			narMeta.References = sentNarMeta.References
 			err = s.metadataStore.PutNarMeta(r.Context(), narMeta)
@@ -152,18 +161,18 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
-		}
+		} else {
+			// Do full comparison of NarMeta, including references
+			if !narMeta.IsEqualTo(sentNarMeta, true) {
+				log.Error("Sent .narinfo with conflicting NarMeta (References)")
+				http.Error(w, "NarMeta (References) is conflicting", http.StatusBadRequest)
+			}
 
-		// Do full comparison of NarMeta, including references
-		if !narMeta.IsEqualTo(sentNarMeta, true) {
-			log.Error("Sent .narinfo with conflicting NarMeta (References)")
-			http.Error(w, "NarMeta (References) is conflicting", http.StatusBadRequest)
-		}
-
-		err = s.metadataStore.PutPathInfo(r.Context(), sentPathInfo)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Error putting PathInfo: %v", err), http.StatusInternalServerError)
-			return
+			err = s.metadataStore.PutPathInfo(r.Context(), sentPathInfo)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Error putting PathInfo: %v", err), http.StatusInternalServerError)
+				return
+			}
 		}
 		return
 	}

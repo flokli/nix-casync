@@ -22,6 +22,7 @@ var CLI struct {
 		ListenAddr     string `name:"listen-addr" help:"The address this service listens on" type:"string" default:"[::]:9000"`
 		Priority       int    `name:"priority" help:"What priority to advertise in nix-cache-info. Defaults to 40." type:"int" default:40`
 		AvgChunkSize   int    `name:"avg-chunk-size" help:"The average chunking size to use when chunking NAR files, in bytes. Max is 4 times that, Min is a quarter of this value." type:"int" default:65536`
+		AccessLog      bool   `name:"access-log" help:"Enable access logging" type:"bool" default:true negatable:""`
 	} `cmd serve:"Serve a local nix cache."`
 }
 
@@ -60,10 +61,13 @@ func main() {
 		log.Printf("Starting Server at %v", CLI.Serve.ListenAddr)
 		srv := &http.Server{
 			Addr:         CLI.Serve.ListenAddr,
-			Handler:      middleware.Logger(s.Handler),
+			Handler:      s.Handler,
 			ReadTimeout:  50 * time.Second,
 			WriteTimeout: 100 * time.Second,
 			IdleTimeout:  150 * time.Second,
+		}
+		if CLI.Serve.AccessLog {
+			srv.Handler = middleware.Logger(s.Handler)
 		}
 		log.Fatal(srv.ListenAndServe())
 	default:

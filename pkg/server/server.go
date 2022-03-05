@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 
@@ -14,6 +15,9 @@ import (
 	"github.com/numtide/go-nix/nixbase32"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -28,6 +32,26 @@ type Server struct {
 	io.Closer
 }
 
+type Metrics struct {
+	ChunkedData prometheus.Counter
+	ServedNARData prometheus.Counter
+}
+
+var metrics Metrics = Metrics {
+	ChunkedData: promauto.NewCounter(
+		prometheus.CounterOpts {
+			Name: "nixcasync_chunkedDataGiB",
+			Help: "Total amount of (uncompressed) data sent to the casync chunker since service startup, expressed in GiB.",
+		},
+	),
+	ServedNARData: promauto.NewCounter(
+		prometheus.CounterOpts {
+			Name: "nixcasync_servedDataGiB",
+			Help: "Total amount of served NAR data since service startup, expressed in GiB.",
+		},
+	),
+}
+
 func NewServer(blobStore blobstore.BlobStore, metadataStore metadatastore.MetadataStore, narServeCompression string, priority int) *Server {
 	r := chi.NewRouter()
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +61,8 @@ func NewServer(blobStore blobstore.BlobStore, metadataStore metadatastore.Metada
 	r.Get("/nix-cache-info", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(fmt.Sprintf("StoreDir: /nix/store\nWantMassQuery: 1\nPriority: %d\n", priority)))
 	})
+
+	r.Handle("/metrics", promhttp.Handler())
 
 	s := &Server{
 		Handler:             r,
@@ -251,6 +277,9 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 			log.Errorf("Error sending Narfile to client: %v", err)
 			return
 		}
+
+		metrics.ServedNARData.Add(float64(size) *  9.31 * math.Pow10(-10))
+
 		return
 	}
 
@@ -269,7 +298,8 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// copy the body of the request into blobWriter
-		_, err = io.Copy(blobWriter, reader)
+		isizeWritten, err := io.Copy(blobWriter, reader)
+		sizeWritten := uint64(isizeWritten)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error copying to blobWriter: %v", err), http.StatusInternalServerError)
 		}
@@ -285,10 +315,11 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, fmt.Sprintf("Error checking for existing NarMeta: %v", err), http.StatusInternalServerError)
 				return
 			}
+			sizeWritten += blobWriter.BytesWritten()
 			// We don't have this NarMeta yet, store it.
 			narMeta := &metadatastore.NarMeta{
 				NarHash: blobWriter.Sha256Sum(),
-				Size:    blobWriter.BytesWritten(),
+				Size:    sizeWritten,
 				// TODO: Scan for references, add them here instead of filling on the first .narinfo file upload
 			}
 			err = s.metadataStore.PutNarMeta(r.Context(), narMeta)
@@ -296,6 +327,8 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, fmt.Sprintf("Error putting NarMeta: %v", err), http.StatusInternalServerError)
 				return
 			}
+
+			metrics.ChunkedData.Add(float64(sizeWritten) * 9.31 * math.Pow10(-10))
 		}
 
 		// We already had that NarMeta, nothing to be done

@@ -22,7 +22,6 @@ type MetadataStore interface {
 	// TODO: once we have reference scanning, it shouldn't be possible to mutate existing NarMetas
 	GetNarMeta(ctx context.Context, narHash []byte) (*NarMeta, error)
 	PutNarMeta(ctx context.Context, narMeta *NarMeta) error
-
 	DropAll(ctx context.Context) error
 	io.Closer
 }
@@ -87,7 +86,6 @@ func ParseNarinfo(narinfo *narinfo.NarInfo) (*PathInfo, *NarMeta, error) {
 		References:    references,
 	}
 	return pathInfo, narMeta, nil
-
 }
 
 // RenderNarinfo renders a minimal .narinfo from a PathInfo and NarMeta.

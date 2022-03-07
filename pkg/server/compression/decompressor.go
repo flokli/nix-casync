@@ -12,7 +12,7 @@ import (
 	"github.com/ulikunitz/xz"
 )
 
-// CompressionSuffixToType maps from the compression suffix Nix uses when uploading to the compression type
+// CompressionSuffixToType maps from the compression suffix Nix uses when uploading to the compression type.
 var CompressionSuffixToType = map[string]string{
 	"":      "none",
 	".br":   "br",

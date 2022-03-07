@@ -12,19 +12,17 @@ import (
 	"github.com/ulikunitz/xz"
 )
 
-var (
-	// CompressionSuffixToType maps from the compression suffix Nix uses when uploading to the compression type
-	CompressionSuffixToType = map[string]string{
-		"":      "none",
-		".br":   "br",
-		".bz2":  "bzip2",
-		".gz":   "gzip", // keep in mind nix defaults to gzip if Compression: field is unset or empty string
-		".lz4":  "lz4",
-		".lzip": "lzip",
-		".xz":   "xz",
-		".zst":  "zstd",
-	}
-)
+// CompressionSuffixToType maps from the compression suffix Nix uses when uploading to the compression type
+var CompressionSuffixToType = map[string]string{
+	"":      "none",
+	".br":   "br",
+	".bz2":  "bzip2",
+	".gz":   "gzip", // keep in mind nix defaults to gzip if Compression: field is unset or empty string
+	".lz4":  "lz4",
+	".lzip": "lzip",
+	".xz":   "xz",
+	".zst":  "zstd",
+}
 
 func CompressionTypeToSuffix(compressionType string) (string, error) {
 	for compressionSuffix, aCompressionType := range CompressionSuffixToType {

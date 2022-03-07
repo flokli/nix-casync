@@ -89,7 +89,7 @@ func ParseNarinfo(narinfo *narinfo.NarInfo) (*PathInfo, *NarMeta, error) {
 }
 
 // RenderNarinfo renders a minimal .narinfo from a PathInfo and NarMeta.
-// The URL is synthesized to /nar/$narhash.nar[$compressionSuffix]
+// The URL is synthesized to /nar/$narhash.nar[$compressionSuffix].
 func RenderNarinfo(pathInfo *PathInfo, narMeta *NarMeta, compressionType string) (string, error) {
 	// render the narinfo
 	narHash := &hash.Hash{
@@ -156,7 +156,7 @@ type NarMeta struct {
 	ReferencesStr []string // we still keep the strings around, so we don't need to look up all other PathInfo objects
 }
 
-// Check provides some sanity checking on values in the NarMeta struct
+// Check provides some sanity checking on values in the NarMeta struct.
 func (n *NarMeta) Check() error {
 	if len(n.NarHash) != 32 { // 32 bytes = 256bits
 		return fmt.Errorf("invalid narhash length: %v, must be 32", len(n.NarHash))
@@ -191,7 +191,7 @@ func (n *NarMeta) Check() error {
 }
 
 // IsEqualTo returns true if the other NarMeta is equal to it
-// The compareReferences parameter controls whether references should be compared
+// The compareReferences parameter controls whether references should be compared.
 func (n *NarMeta) IsEqualTo(other *NarMeta, compareReferences bool) bool {
 	if !(n.Size == other.Size) {
 		return false

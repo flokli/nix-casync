@@ -26,7 +26,7 @@ type casyncStoreReader struct {
 	fileAssembled bool // whether AssembleFile was already run
 }
 
-// NewCasyncStoreReader returns a properly initialized casyncStoreReader
+// NewCasyncStoreReader returns a properly initialized casyncStoreReader.
 func NewCasyncStoreReader(
 	ctx context.Context,
 	caidx desync.Index,

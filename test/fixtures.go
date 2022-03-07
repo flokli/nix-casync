@@ -2,9 +2,8 @@ package test
 
 import (
 	"bytes"
-	"fmt"
-
 	_ "embed"
+	"fmt"
 
 	"github.com/numtide/go-nix/nar/narinfo"
 )

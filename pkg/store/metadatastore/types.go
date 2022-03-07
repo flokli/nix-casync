@@ -40,7 +40,7 @@ type PathInfo struct {
 }
 
 // ParseNarinfo parses a narinfo.NarInfo struct
-// and returns a PathInfo and NarMeta struct, or an error
+// and returns a PathInfo and NarMeta struct, or an error.
 func ParseNarinfo(narinfo *narinfo.NarInfo) (*PathInfo, *NarMeta, error) {
 	// Ensure sha256 is used for hashing.
 	if narinfo.NarHash.HashType != hash.HashTypeSha256 {

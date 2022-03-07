@@ -13,7 +13,7 @@ import (
 	"github.com/numtide/go-nix/nixbase32"
 )
 
-// FileStore implements MetadataStore
+// FileStore implements MetadataStore.
 var _ MetadataStore = &FileStore{}
 
 type FileStore struct {

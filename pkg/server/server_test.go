@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestHandler tests the handler
+// TestHandler tests the handler.
 func TestHandler(t *testing.T) {
 	blobStore := blobstore.NewMemoryStore()
 	defer blobStore.Close()

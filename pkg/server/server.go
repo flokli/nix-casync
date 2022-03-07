@@ -10,10 +10,9 @@ import (
 	"github.com/flokli/nix-casync/pkg/server/compression"
 	"github.com/flokli/nix-casync/pkg/store/blobstore"
 	"github.com/flokli/nix-casync/pkg/store/metadatastore"
+	"github.com/go-chi/chi/v5"
 	"github.com/numtide/go-nix/nar/narinfo"
 	"github.com/numtide/go-nix/nixbase32"
-
-	"github.com/go-chi/chi/v5"
 	log "github.com/sirupsen/logrus"
 )
 

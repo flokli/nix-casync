@@ -155,7 +155,7 @@ func TestHandler(t *testing.T) {
 			wc.Write(tdA.NarContents)
 			wc.Close()
 
-			//fmt.Printf("!!!!==buffer contains %d elements.\n", len(b.Bytes()))
+			// fmt.Printf("!!!!==buffer contains %d elements.\n", len(b.Bytes()))
 
 			rr := httptest.NewRecorder()
 			req, err := http.NewRequest("PUT", narpathZstd, bytes.NewReader(b.Bytes()))

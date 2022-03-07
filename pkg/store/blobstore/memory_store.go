@@ -11,7 +11,7 @@ import (
 	"sync"
 )
 
-// MemoryStore implements BlobStore
+// MemoryStore implements BlobStore.
 var _ BlobStore = &MemoryStore{}
 
 type MemoryStore struct {
@@ -47,7 +47,7 @@ func (m *MemoryStore) GetBlob(ctx context.Context, sha256 []byte) (io.ReadCloser
 	return nil, 0, os.ErrNotExist
 }
 
-// memoryStoreWriter implements WriteCloseHasher
+// memoryStoreWriter implements WriteCloseHasher.
 var _ WriteCloseHasher = &memoryStoreWriter{}
 
 type memoryStoreWriter struct {

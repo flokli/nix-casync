@@ -25,7 +25,6 @@ type CasyncStore struct {
 }
 
 func NewCasyncStore(localStoreDir, localIndexStoreDir string, avgChunkSize int) (*CasyncStore, error) {
-
 	// TODO: maybe use MultiStoreWithCache?
 	err := os.MkdirAll(localStoreDir, os.ModePerm)
 	if err != nil {

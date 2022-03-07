@@ -35,7 +35,7 @@ type casyncStoreWriter struct {
 	hash         hash.Hash
 }
 
-// NewCasyncStoreWriter returns a properly initialized casyncStoreWriter
+// NewCasyncStoreWriter returns a properly initialized casyncStoreWriter.
 func NewCasyncStoreWriter(
 	ctx context.Context,
 	desyncStore desync.WriteStore,

@@ -36,7 +36,7 @@ func TestFileStore(t *testing.T) {
 	testMetadataStore(t, fileStore)
 }
 
-// testMetadataStore runs all metadata store tests against the passed store
+// testMetadataStore runs all metadata store tests against the passed store.
 func testMetadataStore(t *testing.T, metadataStore MetadataStore) {
 	testDataT := test.GetTestData()
 

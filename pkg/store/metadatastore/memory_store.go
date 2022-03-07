@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-// MemoryStore implements MetadataStore
+// MemoryStore implements MetadataStore.
 var _ MetadataStore = &MemoryStore{}
 
 type MemoryStore struct {

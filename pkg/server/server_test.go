@@ -1,4 +1,4 @@
-package server
+package server_test
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/datadog/zstd"
+	"github.com/flokli/nix-casync/pkg/server"
 	"github.com/flokli/nix-casync/pkg/server/compression"
 	"github.com/flokli/nix-casync/pkg/store/blobstore"
 	"github.com/flokli/nix-casync/pkg/store/metadatastore"
@@ -26,7 +27,7 @@ func TestHandler(t *testing.T) {
 	defer blobStore.Close()
 	metadataStore := metadatastore.NewMemoryStore()
 	defer metadataStore.Close()
-	server := NewServer(blobStore, metadataStore, "zstd", 40)
+	server := server.NewServer(blobStore, metadataStore, "zstd", 40)
 
 	testDataT := test.GetTestData()
 

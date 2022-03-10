@@ -151,9 +151,11 @@ func TestHandler(t *testing.T) {
 			// compress the .nar file on the fly, store in nb
 			var b bytes.Buffer
 			wc, err := compression.NewCompressor(&b, "zstd")
-			assert.NoError(t, err)
-			wc.Write(tdA.NarContents)
-			wc.Close()
+			assert.NoError(t, err, "creating a new compressor shouldn't error")
+			_, err = wc.Write(tdA.NarContents)
+			assert.NoError(t, err, "writing to compressor shouldn't error")
+			err = wc.Close()
+			assert.NoError(t, err, "closing compressor shouldn't error")
 
 			// fmt.Printf("!!!!==buffer contains %d elements.\n", len(b.Bytes()))
 

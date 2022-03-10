@@ -9,10 +9,10 @@ import (
 	"github.com/folbricht/desync"
 )
 
-// casyncStoreReader provides a io.ReadCloser
+// CasyncStoreReader provides a io.ReadCloser
 // on the first read, it creates a tempfile, assembles the contents into it,
 // then reads into that file.
-type casyncStoreReader struct {
+type CasyncStoreReader struct {
 	io.ReadCloser
 
 	ctx         context.Context
@@ -34,14 +34,14 @@ func NewCasyncStoreReader(
 	seeds []desync.Seed,
 	concurrency int,
 	pb desync.ProgressBar,
-) (*casyncStoreReader, error) {
+) (*CasyncStoreReader, error) {
 	tmpFile, err := ioutil.TempFile("", "blob")
 	if err != nil {
 		return nil, err
 	}
 	// Cleanup is handled in csnr.Close(), or whenever there's an error during init
 
-	return &casyncStoreReader{
+	return &CasyncStoreReader{
 		ctx:         ctx,
 		caidx:       caidx,
 		desyncStore: desyncStore,
@@ -52,7 +52,7 @@ func NewCasyncStoreReader(
 	}, nil
 }
 
-func (csnr *casyncStoreReader) Read(p []byte) (n int, err error) {
+func (csnr *CasyncStoreReader) Read(p []byte) (n int, err error) {
 	// if this is the first read, we need to run AssembleFile into f
 	// if there's any error, we return it.
 	// It's up to the caller to also run Close(), which will clean up the tmpfile
@@ -77,7 +77,7 @@ func (csnr *casyncStoreReader) Read(p []byte) (n int, err error) {
 	return csnr.f.Read(p)
 }
 
-func (csnr *casyncStoreReader) Close() error {
+func (csnr *CasyncStoreReader) Close() error {
 	defer os.Remove(csnr.f.Name())
 	return csnr.f.Close()
 }

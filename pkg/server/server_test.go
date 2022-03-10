@@ -157,8 +157,6 @@ func TestHandler(t *testing.T) {
 			err = wc.Close()
 			assert.NoError(t, err, "closing compressor shouldn't error")
 
-			// fmt.Printf("!!!!==buffer contains %d elements.\n", len(b.Bytes()))
-
 			rr := httptest.NewRecorder()
 			req, err := http.NewRequest("PUT", narpathZstd, bytes.NewReader(b.Bytes()))
 			assert.NoError(t, err)

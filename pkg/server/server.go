@@ -30,11 +30,17 @@ type Server struct {
 func NewServer(blobStore blobstore.BlobStore, metadataStore metadatastore.MetadataStore, narServeCompression string, priority int) *Server {
 	r := chi.NewRouter()
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("nix-casync"))
+		_, err := w.Write([]byte("nix-casync"))
+		if err != nil {
+			log.Errorf("Unable to write response: %v", err)
+		}
 	})
 
 	r.Get("/nix-cache-info", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(fmt.Sprintf("StoreDir: /nix/store\nWantMassQuery: 1\nPriority: %d\n", priority)))
+		_, err := w.Write([]byte(fmt.Sprintf("StoreDir: /nix/store\nWantMassQuery: 1\nPriority: %d\n", priority)))
+		if err != nil {
+			log.Errorf("Unable to write response: %v", err)
+		}
 	})
 
 	s := &Server{
@@ -107,7 +113,10 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "text/x-nix-narinfo")
 		w.Header().Add("Content-Length", fmt.Sprintf("%d", len(narinfoContent)))
 
-		w.Write([]byte(narinfoContent))
+		_, err = w.Write([]byte(narinfoContent))
+		if err != nil {
+			log.Errorf("Unable to write narinfo contents: %v", err)
+		}
 		return
 	}
 	if r.Method == http.MethodPut {

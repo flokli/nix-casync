@@ -123,7 +123,7 @@ func RenderNarinfo(pathInfo *PathInfo, narMeta *NarMeta, compressionType string)
 		return "", err
 	}
 
-	narInfo.URL = narInfo.URL + suffix
+	narInfo.URL += suffix
 
 	return narInfo.String(), nil
 }

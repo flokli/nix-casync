@@ -199,7 +199,7 @@ func TestHandler(t *testing.T) {
 		// as zstd compression is configured.
 		// We also use it later in the test to upload a compressed version.
 		smallNarinfo := tdA.Narinfo
-		smallNarinfo.URL = smallNarinfo.URL + ".zst"
+		smallNarinfo.URL += ".zst"
 
 		smallNarinfo.FileHash = nil
 		smallNarinfo.FileSize = 0

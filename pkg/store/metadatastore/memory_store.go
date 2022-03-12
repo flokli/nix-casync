@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-// MemoryStore implements MetadataStore
+// MemoryStore implements MetadataStore.
 var _ MetadataStore = &MemoryStore{}
 
 type MemoryStore struct {
@@ -34,9 +34,11 @@ func (ms *MemoryStore) GetPathInfo(ctx context.Context, outputHash []byte) (*Pat
 	ms.muPathInfo.Lock()
 	v, ok := ms.pathInfo[hex.EncodeToString(outputHash)]
 	ms.muPathInfo.Unlock()
+
 	if ok {
 		return &v, nil
 	}
+
 	return nil, os.ErrNotExist
 }
 
@@ -52,12 +54,14 @@ func (ms *MemoryStore) PutPathInfo(ctx context.Context, pathinfo *PathInfo) erro
 		if errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("referred nar doesn't exist: %w", err)
 		}
+
 		return err
 	}
 
 	ms.muPathInfo.Lock()
 	ms.pathInfo[hex.EncodeToString(pathinfo.OutputHash)] = *pathinfo
 	ms.muPathInfo.Unlock()
+
 	return nil
 }
 
@@ -65,9 +69,11 @@ func (ms *MemoryStore) GetNarMeta(ctx context.Context, narHash []byte) (*NarMeta
 	ms.muNarMeta.Lock()
 	v, ok := ms.narMeta[hex.EncodeToString(narHash)]
 	ms.muNarMeta.Unlock()
+
 	if ok {
 		return &v, nil
 	}
+
 	return nil, os.ErrNotExist
 }
 
@@ -84,6 +90,7 @@ func (ms *MemoryStore) PutNarMeta(ctx context.Context, narMeta *NarMeta) error {
 			if errors.Is(err, os.ErrNotExist) {
 				return fmt.Errorf("referred reference %v doesn't exist: %w", narMeta.ReferencesStr[i], err)
 			}
+
 			return err
 		}
 	}
@@ -91,19 +98,24 @@ func (ms *MemoryStore) PutNarMeta(ctx context.Context, narMeta *NarMeta) error {
 	ms.muNarMeta.Lock()
 	ms.narMeta[hex.EncodeToString(narMeta.NarHash)] = *narMeta
 	ms.muNarMeta.Unlock()
+
 	return nil
 }
 
 func (ms *MemoryStore) DropAll(ctx context.Context) error {
 	ms.muNarMeta.Lock()
 	ms.muPathInfo.Lock()
+
 	for k := range ms.narMeta {
 		delete(ms.narMeta, k)
 	}
+
 	for k := range ms.pathInfo {
 		delete(ms.pathInfo, k)
 	}
+
 	ms.muNarMeta.Unlock()
 	ms.muPathInfo.Unlock()
+
 	return nil
 }

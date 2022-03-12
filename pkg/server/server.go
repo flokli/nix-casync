@@ -10,10 +10,9 @@ import (
 	"github.com/flokli/nix-casync/pkg/server/compression"
 	"github.com/flokli/nix-casync/pkg/store/blobstore"
 	"github.com/flokli/nix-casync/pkg/store/metadatastore"
+	"github.com/go-chi/chi/v5"
 	"github.com/numtide/go-nix/nar/narinfo"
 	"github.com/numtide/go-nix/nixbase32"
-
-	"github.com/go-chi/chi/v5"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -28,14 +27,23 @@ type Server struct {
 	io.Closer
 }
 
-func NewServer(blobStore blobstore.BlobStore, metadataStore metadatastore.MetadataStore, narServeCompression string, priority int) *Server {
+func NewServer(blobStore blobstore.BlobStore,
+	metadataStore metadatastore.MetadataStore,
+	narServeCompression string,
+	priority int) *Server {
 	r := chi.NewRouter()
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("nix-casync"))
+		_, err := w.Write([]byte("nix-casync"))
+		if err != nil {
+			log.Errorf("Unable to write response: %v", err)
+		}
 	})
 
 	r.Get("/nix-cache-info", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(fmt.Sprintf("StoreDir: /nix/store\nWantMassQuery: 1\nPriority: %d\n", priority)))
+		_, err := w.Write([]byte(fmt.Sprintf("StoreDir: /nix/store\nWantMassQuery: 1\nPriority: %d\n", priority)))
+		if err != nil {
+			log.Errorf("Unable to write response: %v", err)
+		}
 	})
 
 	s := &Server{
@@ -47,19 +55,16 @@ func NewServer(blobStore blobstore.BlobStore, metadataStore metadatastore.Metada
 
 	s.RegisterNarHandlers()
 	s.RegisterNarinfoHandlers()
+
 	return s
 }
 
 func (s *Server) Close() error {
-	err1 := s.blobStore.Close()
-	err2 := s.metadataStore.Close()
-	if err1 != nil {
-		return err1
+	if err := s.blobStore.Close(); err != nil {
+		return err
 	}
-	if err2 != nil {
-		return err2
-	}
-	return nil
+
+	return s.metadataStore.Close()
 }
 
 func (s *Server) RegisterNarinfoHandlers() {
@@ -71,10 +76,13 @@ func (s *Server) RegisterNarinfoHandlers() {
 
 func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 	outputhashStr := chi.URLParam(r, "outputhash")
+
 	outputhash, err := nixbase32.DecodeString(outputhashStr)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unable to decode outputhash: %v", err), http.StatusBadRequest)
 	}
+
+	//nolint:nestif
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		// get PathInfo
 		pathInfo, err := s.metadataStore.GetPathInfo(r.Context(), outputhash)
@@ -83,7 +91,9 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 			if errors.Is(err, os.ErrNotExist) {
 				status = http.StatusNotFound
 			}
+
 			http.Error(w, fmt.Sprintf("Error getting PathInfo: %v", err), status)
+
 			return
 		}
 
@@ -102,20 +112,28 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		narinfoContent, err := metadatastore.RenderNarinfo(pathInfo, narMeta, s.narServeCompression)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Unable to render .narinfo: %v", err), http.StatusInternalServerError)
+
 			return
 		}
 
 		w.Header().Add("Content-Type", "text/x-nix-narinfo")
 		w.Header().Add("Content-Length", fmt.Sprintf("%d", len(narinfoContent)))
 
-		w.Write([]byte(narinfoContent))
+		_, err = w.Write([]byte(narinfoContent))
+		if err != nil {
+			log.Errorf("Unable to write narinfo contents: %v", err)
+		}
+
 		return
 	}
+
+	//nolint:nestif
 	if r.Method == http.MethodPut {
 		ni, err := narinfo.Parse(r.Body)
 		if err != nil {
 			log.Errorf("Error parsing .narinfo: %v", err)
 			http.Error(w, fmt.Sprintf("Error parsing .narinfo: %v", err), http.StatusBadRequest)
+
 			return
 		}
 
@@ -124,6 +142,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, os.ErrNotExist) {
 			log.Error("Rejected uploading a .narinfo pointing to a non-existent narhash")
 			http.Error(w, "Narinfo points to non-existent NarHash", http.StatusBadRequest)
+
 			return
 		}
 
@@ -145,20 +164,22 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		// if it's empty right now.
 		if len(narMeta.References) == 0 && len(sentNarMeta.References) != 0 {
 			// we need to persist PathInfo first, so PutNarMeta won't trip on the not-yet-existing PathInfo
-
 			err = s.metadataStore.PutPathInfo(r.Context(), sentPathInfo)
 			if err != nil {
 				log.Errorf("Error putting PathInfo: %v", err)
 				http.Error(w, fmt.Sprintf("Error putting PathInfo: %v", err), http.StatusInternalServerError)
+
 				return
 			}
 
 			narMeta.ReferencesStr = sentNarMeta.ReferencesStr
 			narMeta.References = sentNarMeta.References
+
 			err = s.metadataStore.PutNarMeta(r.Context(), narMeta)
 			if err != nil {
 				log.Errorf("Failed to update NarMeta with References from pathinfo %v: %v", sentPathInfo.Name, err)
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+
 				return
 			}
 		} else {
@@ -171,11 +192,14 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 			err = s.metadataStore.PutPathInfo(r.Context(), sentPathInfo)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Error putting PathInfo: %v", err), http.StatusInternalServerError)
+
 				return
 			}
 		}
+
 		return
 	}
+
 	http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 }
 
@@ -205,19 +229,24 @@ func (s *Server) RegisterNarHandlers() {
 }
 
 func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
+	//nolint:nestif
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		narhashStr := chi.URLParam(r, "narhash")
+
 		narhash, err := nixbase32.DecodeString(narhashStr)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Unable to decode narHash %v: %v", narhashStr, err), http.StatusBadRequest)
 		}
+
 		blobReader, size, err := s.blobStore.GetBlob(r.Context(), narhash)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if errors.Is(err, os.ErrNotExist) {
 				status = http.StatusNotFound
 			}
+
 			http.Error(w, fmt.Sprintf("Error retrieving narfile with hash %v: %v", narhashStr, err), status)
+
 			return
 		}
 		defer blobReader.Close()
@@ -226,6 +255,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		compressionSuffix := chi.URLParam(r, "compressionSuffix")
 
 		var writer io.Writer = w
+
 		if compressionSuffix != "" {
 			// We only support zstd, gzip, brotli and none, as the others are way too CPU-intensive,
 			// and never advertised anyways.
@@ -249,15 +279,19 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			log.Errorf("Error sending Narfile to client: %v", err)
+
 			return
 		}
+
 		return
 	}
 
+	//nolint:nestif
 	if r.Method == http.MethodPut {
 		blobWriter, err := s.blobStore.PutBlob(r.Context())
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error initializing blobWriter: %v", err), http.StatusInternalServerError)
+
 			return
 		}
 		defer blobWriter.Close()
@@ -273,6 +307,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error copying to blobWriter: %v", err), http.StatusInternalServerError)
 		}
+
 		err = blobWriter.Close()
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error closing blobWriter: %v", err), http.StatusInternalServerError)
@@ -283,6 +318,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
 				http.Error(w, fmt.Sprintf("Error checking for existing NarMeta: %v", err), http.StatusInternalServerError)
+
 				return
 			}
 			// We don't have this NarMeta yet, store it.
@@ -291,9 +327,11 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 				Size:    blobWriter.BytesWritten(),
 				// TODO: Scan for references, add them here instead of filling on the first .narinfo file upload
 			}
+
 			err = s.metadataStore.PutNarMeta(r.Context(), narMeta)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Error putting NarMeta: %v", err), http.StatusInternalServerError)
+
 				return
 			}
 		}

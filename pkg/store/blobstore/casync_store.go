@@ -25,7 +25,6 @@ type CasyncStore struct {
 }
 
 func NewCasyncStore(localStoreDir, localIndexStoreDir string, avgChunkSize int) (*CasyncStore, error) {
-
 	// TODO: maybe use MultiStoreWithCache?
 	err := os.MkdirAll(localStoreDir, os.ModePerm)
 	if err != nil {
@@ -65,10 +64,10 @@ func NewCasyncStore(localStoreDir, localIndexStoreDir string, avgChunkSize int) 
 }
 
 func (c *CasyncStore) Close() error {
-	err := c.localStore.Close()
-	if err != nil {
+	if err := c.localStore.Close(); err != nil {
 		return err
 	}
+
 	return c.localIndexStore.Close()
 }
 
@@ -90,10 +89,11 @@ func (c *CasyncStore) GetBlob(ctx context.Context, sha256 []byte) (io.ReadCloser
 	if err != nil {
 		return nil, 0, err
 	}
+
 	return csnr, caidx.Length(), nil
 }
 
-func (c *CasyncStore) PutBlob(ctx context.Context) (WriteCloseHasher, error) {
+func (c *CasyncStore) PutBlob(ctx context.Context) (WriteCloseHasher, error) { //nolint:ireturn
 	return NewCasyncStoreWriter(
 		ctx,
 

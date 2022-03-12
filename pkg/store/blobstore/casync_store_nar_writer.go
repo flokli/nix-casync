@@ -12,12 +12,15 @@ import (
 	"github.com/folbricht/desync"
 )
 
-// casyncStoreWriter provides a io.WriteCloser interface
+// CasyncStoreWriter implements WriteCloseHasher.
+var _ WriteCloseHasher = &CasyncStoreWriter{}
+
+// CasyncStoreWriter provides a io.WriteClose[Hashe]r interface
 // The whole content of the blob is written to it.
 // Internally, it'll write it to a temporary file.
 // On close, its contents will be chunked,
 // the index added to the index store, and the chunks added to the chunk store.
-type casyncStoreWriter struct {
+type CasyncStoreWriter struct {
 	io.WriteCloser
 
 	ctx context.Context
@@ -35,7 +38,7 @@ type casyncStoreWriter struct {
 	hash         hash.Hash
 }
 
-// NewCasyncStoreWriter returns a properly initialized casyncStoreWriter
+// NewCasyncStoreWriter returns a properly initialized casyncStoreWriter.
 func NewCasyncStoreWriter(
 	ctx context.Context,
 	desyncStore desync.WriteStore,
@@ -44,14 +47,14 @@ func NewCasyncStoreWriter(
 	chunkSizeMinDefault uint64,
 	chunkSizeAvgDefault uint64,
 	chunkSizeMaxDefault uint64,
-) (*casyncStoreWriter, error) {
+) (*CasyncStoreWriter, error) {
 	tmpFile, err := ioutil.TempFile("", "blob")
 	if err != nil {
 		return nil, err
 	}
 	// Cleanup is handled in Close()
 
-	return &casyncStoreWriter{
+	return &CasyncStoreWriter{
 		ctx: ctx,
 
 		desyncStore:      desyncStore,
@@ -67,13 +70,14 @@ func NewCasyncStoreWriter(
 	}, nil
 }
 
-func (csw *casyncStoreWriter) Write(p []byte) (int, error) {
+func (csw *CasyncStoreWriter) Write(p []byte) (int, error) {
 	csw.hash.Write(p)
 	csw.bytesWritten += uint64(len(p))
+
 	return csw.f.Write(p)
 }
 
-func (csw *casyncStoreWriter) Close() error {
+func (csw *CasyncStoreWriter) Close() error {
 	// at the end, we want to remove the tempfile
 	defer os.Remove(csw.f.Name())
 
@@ -97,6 +101,7 @@ func (csw *casyncStoreWriter) Close() error {
 	if err != nil {
 		return err
 	}
+
 	_, err = csw.f.Seek(0, 0)
 	if err != nil {
 		return err
@@ -129,13 +134,14 @@ func (csw *casyncStoreWriter) Close() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func (csw *casyncStoreWriter) Sha256Sum() []byte {
+func (csw *CasyncStoreWriter) Sha256Sum() []byte {
 	return csw.hash.Sum([]byte{})
 }
 
-func (csw *casyncStoreWriter) BytesWritten() uint64 {
+func (csw *CasyncStoreWriter) BytesWritten() uint64 {
 	return csw.bytesWritten
 }

@@ -12,26 +12,25 @@ import (
 	"github.com/ulikunitz/xz"
 )
 
-var (
-	// CompressionSuffixToType maps from the compression suffix Nix uses when uploading to the compression type
-	CompressionSuffixToType = map[string]string{
-		"":      "none",
-		".br":   "br",
-		".bz2":  "bzip2",
-		".gz":   "gzip", // keep in mind nix defaults to gzip if Compression: field is unset or empty string
-		".lz4":  "lz4",
-		".lzip": "lzip",
-		".xz":   "xz",
-		".zst":  "zstd",
-	}
-)
+// compressionSuffixToType maps from the compression suffix Nix uses when uploading to the compression type.
+var compressionSuffixToType = map[string]string{ //nolint:gochecknoglobals
+	"":      "none",
+	".br":   "br",
+	".bz2":  "bzip2",
+	".gz":   "gzip", // keep in mind nix defaults to gzip if Compression: field is unset or empty string
+	".lz4":  "lz4",
+	".lzip": "lzip",
+	".xz":   "xz",
+	".zst":  "zstd",
+}
 
-func CompressionTypeToSuffix(compressionType string) (string, error) {
-	for compressionSuffix, aCompressionType := range CompressionSuffixToType {
+func TypeToSuffix(compressionType string) (string, error) {
+	for compressionSuffix, aCompressionType := range compressionSuffixToType {
 		if aCompressionType == compressionType {
 			return compressionSuffix, nil
 		}
 	}
+
 	return "", fmt.Errorf("unknown compression type: %v", compressionType)
 }
 
@@ -55,6 +54,7 @@ func NewDecompressor(r io.Reader, compressionType string) (io.ReadCloser, error)
 		if err != nil {
 			return nil, err
 		}
+
 		return gzipReader, nil
 	case "lz4":
 		return io.NopCloser(lz4.NewReader(r)), nil
@@ -63,6 +63,7 @@ func NewDecompressor(r io.Reader, compressionType string) (io.ReadCloser, error)
 		if err != nil {
 			return nil, err
 		}
+
 		return io.NopCloser(xzReader), nil
 	case "zstd":
 		return zstd.NewReader(r), nil
@@ -74,7 +75,7 @@ func NewDecompressor(r io.Reader, compressionType string) (io.ReadCloser, error)
 
 func NewDecompressorBySuffix(r io.Reader, compressionSuffix string) (io.ReadCloser, error) {
 	// try to lookup the compression type from compressionSuffixToType
-	if compressionType, ok := CompressionSuffixToType[compressionSuffix]; ok {
+	if compressionType, ok := compressionSuffixToType[compressionSuffix]; ok {
 		return NewDecompressor(r, compressionType)
 	}
 

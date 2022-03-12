@@ -13,7 +13,7 @@ import (
 	"github.com/numtide/go-nix/nixbase32"
 )
 
-// FileStore implements MetadataStore
+// FileStore implements MetadataStore.
 var _ MetadataStore = &FileStore{}
 
 type FileStore struct {
@@ -23,15 +23,19 @@ type FileStore struct {
 
 func NewFileStore(baseDirectory string) (*FileStore, error) {
 	pathInfoDirectory := path.Join(baseDirectory, "pathinfo")
+
 	err := os.MkdirAll(pathInfoDirectory, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
+
 	narMetaDirectory := path.Join(baseDirectory, "narmeta")
+
 	err = os.MkdirAll(narMetaDirectory, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
+
 	return &FileStore{
 		pathInfoDirectory: pathInfoDirectory,
 		narMetaDirectory:  narMetaDirectory,
@@ -40,11 +44,13 @@ func NewFileStore(baseDirectory string) (*FileStore, error) {
 
 func (fs *FileStore) pathInfoPath(outputHash []byte) string {
 	encodedHash := nixbase32.EncodeToString(outputHash)
+
 	return path.Join(fs.pathInfoDirectory, encodedHash[:4], encodedHash+".json")
 }
 
 func (fs *FileStore) narMetaPath(narHash []byte) string {
 	encodedHash := nixbase32.EncodeToString(narHash)
+
 	return path.Join(fs.narMetaDirectory, encodedHash[:4], encodedHash+".json")
 }
 
@@ -55,15 +61,19 @@ func (fs *FileStore) GetPathInfo(ctx context.Context, outputHash []byte) (*PathI
 	if err != nil {
 		return nil, err
 	}
+
 	b, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}
+
 	var pathInfo PathInfo
+
 	err = json.Unmarshal(b, &pathInfo)
 	if err != nil {
 		return nil, err
 	}
+
 	return &pathInfo, nil
 }
 
@@ -78,6 +88,7 @@ func (fs *FileStore) PutPathInfo(ctx context.Context, pathinfo *PathInfo) error 
 		if errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("referred nar doesn't exist: %w", err)
 		}
+
 		return err
 	}
 
@@ -103,6 +114,7 @@ func (fs *FileStore) PutPathInfo(ctx context.Context, pathinfo *PathInfo) error 
 	if err != nil {
 		return err
 	}
+
 	_, err = tmpFile.Write(b)
 	if err != nil {
 		return err
@@ -112,6 +124,7 @@ func (fs *FileStore) PutPathInfo(ctx context.Context, pathinfo *PathInfo) error 
 	if err != nil {
 		return err
 	}
+
 	err = tmpFile.Close()
 	if err != nil {
 		return err
@@ -127,15 +140,19 @@ func (fs *FileStore) GetNarMeta(ctx context.Context, narHash []byte) (*NarMeta, 
 	if err != nil {
 		return nil, err
 	}
+
 	b, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}
+
 	var narMeta NarMeta
+
 	err = json.Unmarshal(b, &narMeta)
 	if err != nil {
 		return nil, err
 	}
+
 	return &narMeta, nil
 }
 
@@ -152,6 +169,7 @@ func (fs *FileStore) PutNarMeta(ctx context.Context, narMeta *NarMeta) error {
 			if errors.Is(err, os.ErrNotExist) {
 				return fmt.Errorf("referred reference %v doesn't exist: %w", narMeta.ReferencesStr[i], err)
 			}
+
 			return err
 		}
 	}
@@ -178,6 +196,7 @@ func (fs *FileStore) PutNarMeta(ctx context.Context, narMeta *NarMeta) error {
 	if err != nil {
 		return err
 	}
+
 	_, err = tmpFile.Write(b)
 	if err != nil {
 		return err
@@ -187,6 +206,7 @@ func (fs *FileStore) PutNarMeta(ctx context.Context, narMeta *NarMeta) error {
 	if err != nil {
 		return err
 	}
+
 	err = tmpFile.Close()
 	if err != nil {
 		return err
@@ -204,17 +224,21 @@ func (fs *FileStore) DropAll(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	err = os.RemoveAll(fs.pathInfoDirectory)
 	if err != nil {
 		return err
 	}
+
 	err = os.MkdirAll(fs.narMetaDirectory, os.ModePerm)
 	if err != nil {
 		return err
 	}
+
 	err = os.MkdirAll(fs.pathInfoDirectory, os.ModePerm)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }

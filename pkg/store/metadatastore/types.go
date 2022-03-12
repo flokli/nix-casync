@@ -22,7 +22,6 @@ type MetadataStore interface {
 	// TODO: once we have reference scanning, it shouldn't be possible to mutate existing NarMetas
 	GetNarMeta(ctx context.Context, narHash []byte) (*NarMeta, error)
 	PutNarMeta(ctx context.Context, narMeta *NarMeta) error
-
 	DropAll(ctx context.Context) error
 	io.Closer
 }
@@ -41,7 +40,7 @@ type PathInfo struct {
 }
 
 // ParseNarinfo parses a narinfo.NarInfo struct
-// and returns a PathInfo and NarMeta struct, or an error
+// and returns a PathInfo and NarMeta struct, or an error.
 func ParseNarinfo(narinfo *narinfo.NarInfo) (*PathInfo, *NarMeta, error) {
 	// Ensure sha256 is used for hashing.
 	if narinfo.NarHash.HashType != hash.HashTypeSha256 {
@@ -70,13 +69,14 @@ func ParseNarinfo(narinfo *narinfo.NarInfo) (*PathInfo, *NarMeta, error) {
 	}
 
 	// Construct References
-	var references [][]byte
+	references := make([][]byte, 0, len(narinfo.References))
 
 	for _, referenceStr := range narinfo.References {
 		hashRef, err := nixbase32.DecodeString(referenceStr[0:32])
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to decode hash %v in reference %v: %w", referenceStr, narinfo.References, err)
 		}
+
 		references = append(references, hashRef)
 	}
 
@@ -86,12 +86,12 @@ func ParseNarinfo(narinfo *narinfo.NarInfo) (*PathInfo, *NarMeta, error) {
 		ReferencesStr: narinfo.References,
 		References:    references,
 	}
-	return pathInfo, narMeta, nil
 
+	return pathInfo, narMeta, nil
 }
 
 // RenderNarinfo renders a minimal .narinfo from a PathInfo and NarMeta.
-// The URL is synthesized to /nar/$narhash.nar[$compressionSuffix]
+// The URL is synthesized to /nar/$narhash.nar[$compressionSuffix].
 func RenderNarinfo(pathInfo *PathInfo, narMeta *NarMeta, compressionType string) (string, error) {
 	// render the narinfo
 	narHash := &hash.Hash{
@@ -118,11 +118,12 @@ func RenderNarinfo(pathInfo *PathInfo, narMeta *NarMeta, compressionType string)
 		CA: pathInfo.CA,
 	}
 
-	suffix, err := compression.CompressionTypeToSuffix(compressionType)
+	suffix, err := compression.TypeToSuffix(compressionType)
 	if err != nil {
 		return "", err
 	}
-	narInfo.URL = narInfo.URL + suffix
+
+	narInfo.URL += suffix
 
 	return narInfo.String(), nil
 }
@@ -135,9 +136,11 @@ func (pi *PathInfo) Check() error {
 	if len(pi.OutputHash) != 20 {
 		return fmt.Errorf("invalid outputhash: %v", nixbase32.EncodeToString(pi.OutputHash))
 	}
+
 	if len(pi.Name) == 0 {
 		return fmt.Errorf("invalid name: %v", pi.Name)
 	}
+
 	if len(pi.NarHash) != 32 {
 		return fmt.Errorf("invalid narhash: %v", nixbase32.EncodeToString(pi.NarHash))
 	}
@@ -147,6 +150,7 @@ func (pi *PathInfo) Check() error {
 	if !(len(pi.Deriver) == 0 || (strings.HasSuffix(pi.Deriver, ".drv") && len(pi.Deriver) > 32+1+1)) {
 		return fmt.Errorf("invalid deriver: %v", pi.Deriver)
 	}
+
 	return nil
 }
 
@@ -158,7 +162,7 @@ type NarMeta struct {
 	ReferencesStr []string // we still keep the strings around, so we don't need to look up all other PathInfo objects
 }
 
-// Check provides some sanity checking on values in the NarMeta struct
+// Check provides some sanity checking on values in the NarMeta struct.
 func (n *NarMeta) Check() error {
 	if len(n.NarHash) != 32 { // 32 bytes = 256bits
 		return fmt.Errorf("invalid narhash length: %v, must be 32", len(n.NarHash))
@@ -189,15 +193,17 @@ func (n *NarMeta) Check() error {
 			)
 		}
 	}
+
 	return nil
 }
 
 // IsEqualTo returns true if the other NarMeta is equal to it
-// The compareReferences parameter controls whether references should be compared
+// The compareReferences parameter controls whether references should be compared.
 func (n *NarMeta) IsEqualTo(other *NarMeta, compareReferences bool) bool {
 	if !(n.Size == other.Size) {
 		return false
 	}
+
 	if !bytes.Equal(n.NarHash, other.NarHash) {
 		return false
 	}

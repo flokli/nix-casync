@@ -9,10 +9,10 @@ import (
 	"github.com/folbricht/desync"
 )
 
-// casyncStoreReader provides a io.ReadCloser
+// CasyncStoreReader provides a io.ReadCloser
 // on the first read, it creates a tempfile, assembles the contents into it,
 // then reads into that file.
-type casyncStoreReader struct {
+type CasyncStoreReader struct {
 	io.ReadCloser
 
 	ctx         context.Context
@@ -26,7 +26,7 @@ type casyncStoreReader struct {
 	fileAssembled bool // whether AssembleFile was already run
 }
 
-// NewCasyncStoreReader returns a properly initialized casyncStoreReader
+// NewCasyncStoreReader returns a properly initialized casyncStoreReader.
 func NewCasyncStoreReader(
 	ctx context.Context,
 	caidx desync.Index,
@@ -34,14 +34,14 @@ func NewCasyncStoreReader(
 	seeds []desync.Seed,
 	concurrency int,
 	pb desync.ProgressBar,
-) (*casyncStoreReader, error) {
+) (*CasyncStoreReader, error) {
 	tmpFile, err := ioutil.TempFile("", "blob")
 	if err != nil {
 		return nil, err
 	}
 	// Cleanup is handled in csnr.Close(), or whenever there's an error during init
 
-	return &casyncStoreReader{
+	return &CasyncStoreReader{
 		ctx:         ctx,
 		caidx:       caidx,
 		desyncStore: desyncStore,
@@ -52,12 +52,20 @@ func NewCasyncStoreReader(
 	}, nil
 }
 
-func (csnr *casyncStoreReader) Read(p []byte) (n int, err error) {
+func (csnr *CasyncStoreReader) Read(p []byte) (n int, err error) {
 	// if this is the first read, we need to run AssembleFile into f
 	// if there's any error, we return it.
 	// It's up to the caller to also run Close(), which will clean up the tmpfile
 	if !csnr.fileAssembled {
-		_, err = desync.AssembleFile(csnr.ctx, csnr.f.Name(), csnr.caidx, csnr.desyncStore, csnr.seeds, csnr.concurrency, csnr.pb)
+		_, err = desync.AssembleFile(
+			csnr.ctx,
+			csnr.f.Name(),
+			csnr.caidx,
+			csnr.desyncStore,
+			csnr.seeds,
+			csnr.concurrency,
+			csnr.pb,
+		)
 		if err != nil {
 			return 0, err
 		}
@@ -67,6 +75,7 @@ func (csnr *casyncStoreReader) Read(p []byte) (n int, err error) {
 		if err != nil {
 			return 0, err
 		}
+
 		_, err = csnr.f.Seek(0, 0)
 		if err != nil {
 			return 0, err
@@ -74,10 +83,12 @@ func (csnr *casyncStoreReader) Read(p []byte) (n int, err error) {
 		// we successfully went till here
 		csnr.fileAssembled = true
 	}
+
 	return csnr.f.Read(p)
 }
 
-func (csnr *casyncStoreReader) Close() error {
+func (csnr *CasyncStoreReader) Close() error {
 	defer os.Remove(csnr.f.Name())
+
 	return csnr.f.Close()
 }

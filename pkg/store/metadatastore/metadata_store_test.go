@@ -1,4 +1,4 @@
-package metadatastore
+package metadatastore_test
 
 import (
 	"context"
@@ -6,15 +6,18 @@ import (
 	"os"
 	"testing"
 
+	"github.com/flokli/nix-casync/pkg/store/metadatastore"
 	"github.com/flokli/nix-casync/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMemoryStore(t *testing.T) {
-	memoryStore := NewMemoryStore()
+	memoryStore := metadatastore.NewMemoryStore()
+
 	t.Cleanup(func() {
 		memoryStore.Close()
 	})
+
 	testMetadataStore(t, memoryStore)
 }
 
@@ -23,36 +26,43 @@ func TestFileStore(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDir)
 	})
-	fileStore, err := NewFileStore(tmpDir)
+
+	fileStore, err := metadatastore.NewFileStore(tmpDir)
 	if err != nil {
 		panic(err)
 	}
+
 	t.Cleanup(func() {
 		fileStore.Close()
 	})
+
 	testMetadataStore(t, fileStore)
 }
 
-// testMetadataStore runs all metadata store tests against the passed store
-func testMetadataStore(t *testing.T, metadataStore MetadataStore) {
-	testDataT := test.GetTestData()
+// testMetadataStore runs all metadata store tests against the passed store.
+func testMetadataStore(t *testing.T, metadataStore metadatastore.MetadataStore) {
+	testDataT := test.GetTestDataTable()
 
 	tdA, exists := testDataT["a"]
 	if !exists {
 		panic("testData[a] doesn't exist")
 	}
-	tdAPathInfo, tdANarMeta, err := ParseNarinfo(tdA.Narinfo)
+
+	tdAPathInfo, tdANarMeta, err := metadatastore.ParseNarinfo(tdA.Narinfo)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	tdB, exists := testDataT["b"]
 	if !exists {
 		panic("testData[b] doesn't exist")
 	}
-	tdBPathInfo, tdBNarMeta, err := ParseNarinfo(tdB.Narinfo)
+
+	tdBPathInfo, tdBNarMeta, err := metadatastore.ParseNarinfo(tdB.Narinfo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +71,12 @@ func testMetadataStore(t *testing.T, metadataStore MetadataStore) {
 		t.Run("GetNarMetaNotFound", func(t *testing.T) {
 			_, err := metadataStore.GetNarMeta(context.Background(), tdANarMeta.NarHash)
 			if assert.Error(t, err) {
-				assert.ErrorIsf(t, err, os.ErrNotExist, "on a non-existent NarMeta, there should be a os.ErrNotExist in the error chain")
+				assert.ErrorIsf(
+					t,
+					err,
+					os.ErrNotExist,
+					"on a non-existent NarMeta, there should be a os.ErrNotExist in the error chain",
+				)
 			}
 		})
 
@@ -86,7 +101,12 @@ func testMetadataStore(t *testing.T, metadataStore MetadataStore) {
 		t.Run("GetPathInfoNotFound", func(t *testing.T) {
 			_, err := metadataStore.GetPathInfo(context.Background(), tdAPathInfo.OutputHash)
 			if assert.Error(t, err) {
-				assert.ErrorIsf(t, err, os.ErrNotExist, "on a non-existent PathInfo, there should be a os.ErrNotExist in the error chain")
+				assert.ErrorIsf(
+					t,
+					err,
+					os.ErrNotExist,
+					"on a non-existent PathInfo, there should be a os.ErrNotExist in the error chain",
+				)
 			}
 		})
 
@@ -141,7 +161,8 @@ func testMetadataStore(t *testing.T, metadataStore MetadataStore) {
 			err = metadataStore.PutPathInfo(context.Background(), tdAPathInfo)
 			assert.Error(t, err, "uploading PathInfo with references to non-existing NarMeta should fail")
 
-			// now try to upload NarMeta for A, then PathInfo for A, then NarMeta for B, then PathInfo for B, which should succeed
+			// now try to upload NarMeta for A, then PathInfo for A,
+			// then NarMeta for B, then PathInfo for B, which should succeed
 			err = metadataStore.PutNarMeta(context.Background(), tdANarMeta)
 			assert.NoError(t, err)
 			err = metadataStore.PutPathInfo(context.Background(), tdAPathInfo)

@@ -15,34 +15,48 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var CLI struct {
+var CLI struct { //nolint:gochecknoglobals
 	Serve struct {
-		CachePath      string `name:"cache-path" help:"Path to use for a local cache, containing castr, caibx and narinfo files." type:"path" default:"/var/cache/nix-casync"`
-		NarCompression string `name:"nar-compression" help:"The compression algorithm to advertise .nar files with (zstd,gzip,brotli,none)" enum:"zstd,gzip,brotli,none" type:"string" default:"zstd"`
-		ListenAddr     string `name:"listen-addr" help:"The address this service listens on" type:"string" default:"[::]:9000"`
-		Priority       int    `name:"priority" help:"What priority to advertise in nix-cache-info. Defaults to 40." type:"int" default:40`
-		AvgChunkSize   int    `name:"avg-chunk-size" help:"The average chunking size to use when chunking NAR files, in bytes. Max is 4 times that, Min is a quarter of this value." type:"int" default:65536`
-		AccessLog      bool   `name:"access-log" help:"Enable access logging" type:"bool" default:true negatable:""`
-	} `cmd serve:"Serve a local nix cache."`
+		CachePath      string `name:"cache-path" help:"Path to use for a local cache, containing castr, caibx and narinfo files." type:"path" default:"/var/cache/nix-casync"`                                   //nolint:lll
+		NarCompression string `name:"nar-compression" help:"The compression algorithm to advertise .nar files with (zstd,gzip,brotli,none)" enum:"zstd,gzip,brotli,none" type:"string" default:"zstd"`           //nolint:lll
+		ListenAddr     string `name:"listen-addr" help:"The address this service listens on" type:"string" default:"[::]:9000"`                                                                                  //nolint:lll
+		Priority       int    `name:"priority" help:"What priority to advertise in nix-cache-info. Defaults to 40." type:"int" default:"40"`                                                                     //nolint:lll
+		AvgChunkSize   int    `name:"avg-chunk-size" help:"The average chunking size to use when chunking NAR files, in bytes. Max is 4 times that, Min is a quarter of this value." type:"int" default:"65536"` //nolint:lll
+		AccessLog      bool   `name:"access-log" help:"Enable access logging" type:"bool" default:"true" negatable:""`                                                                                           //nolint:lll
+	} `cmd:"" serve:"Serve a local nix cache."`
 }
 
 func main() {
+	retcode := 0
+
+	defer func() { os.Exit(retcode) }()
+
 	ctx := kong.Parse(&CLI)
 	switch ctx.Command() {
 	case "serve":
 		// initialize casync store
 		castrPath := path.Join(CLI.Serve.CachePath, "castr")
 		caibxPath := path.Join(CLI.Serve.CachePath, "caibx")
+
 		blobStore, err := blobstore.NewCasyncStore(castrPath, caibxPath, CLI.Serve.AvgChunkSize)
 		if err != nil {
-			log.Fatal(err)
+			log.Errorf("Error initializing blobstore: %v", err)
+
+			retcode = -1
+
+			return
 		}
 
 		// initialize narinfo store
 		narinfoPath := path.Join(CLI.Serve.CachePath, "narinfo")
+
 		metadataStore, err := metadatastore.NewFileStore(narinfoPath)
 		if err != nil {
-			log.Fatal(err)
+			log.Errorf("Error initializing metadatastore: %v", err)
+
+			retcode = -1
+
+			return
 		}
 
 		s := server.NewServer(blobStore, metadataStore, CLI.Serve.NarCompression, CLI.Serve.Priority)
@@ -50,6 +64,7 @@ func main() {
 
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
+
 		go func() {
 			for range c {
 				log.Info("Received Signal, shutting down…")
@@ -59,6 +74,7 @@ func main() {
 		}()
 
 		log.Printf("Starting Server at %v", CLI.Serve.ListenAddr)
+
 		srv := &http.Server{
 			Addr:         CLI.Serve.ListenAddr,
 			Handler:      s.Handler,
@@ -66,10 +82,19 @@ func main() {
 			WriteTimeout: 100 * time.Second,
 			IdleTimeout:  150 * time.Second,
 		}
+
 		if CLI.Serve.AccessLog {
 			srv.Handler = middleware.Logger(s.Handler)
 		}
-		log.Fatal(srv.ListenAndServe())
+
+		err = srv.ListenAndServe()
+		if err != nil {
+			log.Errorf("Error listening: %v", err)
+
+			retcode = 1
+
+			return
+		}
 	default:
 		panic(ctx.Command())
 	}

@@ -67,6 +67,7 @@ func (c *CasyncStore) Close() error {
 	if err := c.localStore.Close(); err != nil {
 		return err
 	}
+
 	return c.localIndexStore.Close()
 }
 
@@ -88,6 +89,7 @@ func (c *CasyncStore) GetBlob(ctx context.Context, sha256 []byte) (io.ReadCloser
 	if err != nil {
 		return nil, 0, err
 	}
+
 	return csnr, caidx.Length(), nil
 }
 

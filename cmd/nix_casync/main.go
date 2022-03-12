@@ -33,6 +33,7 @@ func main() {
 		// initialize casync store
 		castrPath := path.Join(CLI.Serve.CachePath, "castr")
 		caibxPath := path.Join(CLI.Serve.CachePath, "caibx")
+
 		blobStore, err := blobstore.NewCasyncStore(castrPath, caibxPath, CLI.Serve.AvgChunkSize)
 		if err != nil {
 			log.Fatal(err)
@@ -40,6 +41,7 @@ func main() {
 
 		// initialize narinfo store
 		narinfoPath := path.Join(CLI.Serve.CachePath, "narinfo")
+
 		metadataStore, err := metadatastore.NewFileStore(narinfoPath)
 		if err != nil {
 			log.Fatal(err)
@@ -50,6 +52,7 @@ func main() {
 
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
+
 		go func() {
 			for range c {
 				log.Info("Received Signal, shutting down…")
@@ -59,6 +62,7 @@ func main() {
 		}()
 
 		log.Printf("Starting Server at %v", CLI.Serve.ListenAddr)
+
 		srv := &http.Server{
 			Addr:         CLI.Serve.ListenAddr,
 			Handler:      s.Handler,
@@ -66,9 +70,11 @@ func main() {
 			WriteTimeout: 100 * time.Second,
 			IdleTimeout:  150 * time.Second,
 		}
+
 		if CLI.Serve.AccessLog {
 			srv.Handler = middleware.Logger(s.Handler)
 		}
+
 		log.Fatal(srv.ListenAndServe())
 	default:
 		panic(ctx.Command())

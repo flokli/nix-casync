@@ -13,9 +13,11 @@ import (
 
 func TestMemoryStore(t *testing.T) {
 	memoryStore := metadatastore.NewMemoryStore()
+
 	t.Cleanup(func() {
 		memoryStore.Close()
 	})
+
 	testMetadataStore(t, memoryStore)
 }
 
@@ -24,16 +26,20 @@ func TestFileStore(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDir)
 	})
+
 	fileStore, err := metadatastore.NewFileStore(tmpDir)
 	if err != nil {
 		panic(err)
 	}
+
 	t.Cleanup(func() {
 		fileStore.Close()
 	})
+
 	testMetadataStore(t, fileStore)
 }
 
@@ -45,14 +51,17 @@ func testMetadataStore(t *testing.T, metadataStore metadatastore.MetadataStore) 
 	if !exists {
 		panic("testData[a] doesn't exist")
 	}
+
 	tdAPathInfo, tdANarMeta, err := metadatastore.ParseNarinfo(tdA.Narinfo)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	tdB, exists := testDataT["b"]
 	if !exists {
 		panic("testData[b] doesn't exist")
 	}
+
 	tdBPathInfo, tdBNarMeta, err := metadatastore.ParseNarinfo(tdB.Narinfo)
 	if err != nil {
 		t.Fatal(err)

@@ -52,6 +52,7 @@ func NewServer(blobStore blobstore.BlobStore, metadataStore metadatastore.Metada
 
 	s.RegisterNarHandlers()
 	s.RegisterNarinfoHandlers()
+
 	return s
 }
 
@@ -59,6 +60,7 @@ func (s *Server) Close() error {
 	if err := s.blobStore.Close(); err != nil {
 		return err
 	}
+
 	return s.metadataStore.Close()
 }
 
@@ -71,6 +73,7 @@ func (s *Server) RegisterNarinfoHandlers() {
 
 func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 	outputhashStr := chi.URLParam(r, "outputhash")
+
 	outputhash, err := nixbase32.DecodeString(outputhashStr)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unable to decode outputhash: %v", err), http.StatusBadRequest)
@@ -83,7 +86,9 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 			if errors.Is(err, os.ErrNotExist) {
 				status = http.StatusNotFound
 			}
+
 			http.Error(w, fmt.Sprintf("Error getting PathInfo: %v", err), status)
+
 			return
 		}
 
@@ -112,6 +117,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Errorf("Unable to write narinfo contents: %v", err)
 		}
+
 		return
 	}
 	if r.Method == http.MethodPut {
@@ -119,6 +125,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Errorf("Error parsing .narinfo: %v", err)
 			http.Error(w, fmt.Sprintf("Error parsing .narinfo: %v", err), http.StatusBadRequest)
+
 			return
 		}
 
@@ -127,6 +134,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, os.ErrNotExist) {
 			log.Error("Rejected uploading a .narinfo pointing to a non-existent narhash")
 			http.Error(w, "Narinfo points to non-existent NarHash", http.StatusBadRequest)
+
 			return
 		}
 
@@ -148,20 +156,22 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		// if it's empty right now.
 		if len(narMeta.References) == 0 && len(sentNarMeta.References) != 0 {
 			// we need to persist PathInfo first, so PutNarMeta won't trip on the not-yet-existing PathInfo
-
 			err = s.metadataStore.PutPathInfo(r.Context(), sentPathInfo)
 			if err != nil {
 				log.Errorf("Error putting PathInfo: %v", err)
 				http.Error(w, fmt.Sprintf("Error putting PathInfo: %v", err), http.StatusInternalServerError)
+
 				return
 			}
 
 			narMeta.ReferencesStr = sentNarMeta.ReferencesStr
 			narMeta.References = sentNarMeta.References
+
 			err = s.metadataStore.PutNarMeta(r.Context(), narMeta)
 			if err != nil {
 				log.Errorf("Failed to update NarMeta with References from pathinfo %v: %v", sentPathInfo.Name, err)
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+
 				return
 			}
 		} else {
@@ -177,8 +187,10 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+
 		return
 	}
+
 	http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 }
 
@@ -210,17 +222,21 @@ func (s *Server) RegisterNarHandlers() {
 func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		narhashStr := chi.URLParam(r, "narhash")
+
 		narhash, err := nixbase32.DecodeString(narhashStr)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Unable to decode narHash %v: %v", narhashStr, err), http.StatusBadRequest)
 		}
+
 		blobReader, size, err := s.blobStore.GetBlob(r.Context(), narhash)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if errors.Is(err, os.ErrNotExist) {
 				status = http.StatusNotFound
 			}
+
 			http.Error(w, fmt.Sprintf("Error retrieving narfile with hash %v: %v", narhashStr, err), status)
+
 			return
 		}
 		defer blobReader.Close()
@@ -229,6 +245,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		compressionSuffix := chi.URLParam(r, "compressionSuffix")
 
 		var writer io.Writer = w
+
 		if compressionSuffix != "" {
 			// We only support zstd, gzip, brotli and none, as the others are way too CPU-intensive,
 			// and never advertised anyways.
@@ -254,6 +271,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 			log.Errorf("Error sending Narfile to client: %v", err)
 			return
 		}
+
 		return
 	}
 
@@ -276,6 +294,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error copying to blobWriter: %v", err), http.StatusInternalServerError)
 		}
+
 		err = blobWriter.Close()
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error closing blobWriter: %v", err), http.StatusInternalServerError)
@@ -294,6 +313,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 				Size:    blobWriter.BytesWritten(),
 				// TODO: Scan for references, add them here instead of filling on the first .narinfo file upload
 			}
+
 			err = s.metadataStore.PutNarMeta(r.Context(), narMeta)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Error putting NarMeta: %v", err), http.StatusInternalServerError)

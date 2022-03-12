@@ -76,6 +76,7 @@ func ParseNarinfo(narinfo *narinfo.NarInfo) (*PathInfo, *NarMeta, error) {
 		if err != nil {
 			return nil, nil, fmt.Errorf("unable to decode hash %v in reference %v: %w", referenceStr, narinfo.References, err)
 		}
+
 		references = append(references, hashRef)
 	}
 
@@ -85,6 +86,7 @@ func ParseNarinfo(narinfo *narinfo.NarInfo) (*PathInfo, *NarMeta, error) {
 		ReferencesStr: narinfo.References,
 		References:    references,
 	}
+
 	return pathInfo, narMeta, nil
 }
 
@@ -120,6 +122,7 @@ func RenderNarinfo(pathInfo *PathInfo, narMeta *NarMeta, compressionType string)
 	if err != nil {
 		return "", err
 	}
+
 	narInfo.URL = narInfo.URL + suffix
 
 	return narInfo.String(), nil
@@ -133,9 +136,11 @@ func (pi *PathInfo) Check() error {
 	if len(pi.OutputHash) != 20 {
 		return fmt.Errorf("invalid outputhash: %v", nixbase32.EncodeToString(pi.OutputHash))
 	}
+
 	if len(pi.Name) == 0 {
 		return fmt.Errorf("invalid name: %v", pi.Name)
 	}
+
 	if len(pi.NarHash) != 32 {
 		return fmt.Errorf("invalid narhash: %v", nixbase32.EncodeToString(pi.NarHash))
 	}
@@ -145,6 +150,7 @@ func (pi *PathInfo) Check() error {
 	if !(len(pi.Deriver) == 0 || (strings.HasSuffix(pi.Deriver, ".drv") && len(pi.Deriver) > 32+1+1)) {
 		return fmt.Errorf("invalid deriver: %v", pi.Deriver)
 	}
+
 	return nil
 }
 
@@ -187,6 +193,7 @@ func (n *NarMeta) Check() error {
 			)
 		}
 	}
+
 	return nil
 }
 
@@ -196,6 +203,7 @@ func (n *NarMeta) IsEqualTo(other *NarMeta, compareReferences bool) bool {
 	if !(n.Size == other.Size) {
 		return false
 	}
+
 	if !bytes.Equal(n.NarHash, other.NarHash) {
 		return false
 	}

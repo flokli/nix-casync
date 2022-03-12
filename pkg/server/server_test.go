@@ -25,8 +25,10 @@ import (
 func TestHandler(t *testing.T) {
 	blobStore := blobstore.NewMemoryStore()
 	defer blobStore.Close()
+
 	metadataStore := metadatastore.NewMemoryStore()
 	defer metadataStore.Close()
+
 	server := server.NewServer(blobStore, metadataStore, "zstd", 40)
 
 	testDataT := test.GetTestData()
@@ -35,6 +37,7 @@ func TestHandler(t *testing.T) {
 	if !exists {
 		panic("testData[a] doesn't exist")
 	}
+
 	tdAOutputHash, err := util.GetHashFromStorePath(tdA.Narinfo.StorePath)
 	if !exists {
 		panic(err)
@@ -44,6 +47,7 @@ func TestHandler(t *testing.T) {
 	if !exists {
 		panic("testData[b] doesn't exist")
 	}
+
 	tdBOutputHash, err := util.GetHashFromStorePath(tdB.Narinfo.StorePath)
 	if !exists {
 		panic(err)
@@ -53,6 +57,7 @@ func TestHandler(t *testing.T) {
 	if !exists {
 		panic("testData[c] doesn't exist")
 	}
+
 	tdCOutputHash, err := util.GetHashFromStorePath(tdC.Narinfo.StorePath)
 	if !exists {
 		panic(err)
@@ -88,6 +93,7 @@ func TestHandler(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			assert.Equal(t, []byte{}, actualContents)
 		})
 
@@ -300,8 +306,10 @@ func TestHandler(t *testing.T) {
 	})
 
 	bNarinfoPath := "/" + nixbase32.EncodeToString(tdBOutputHash) + ".narinfo"
+
 	t.Run("PUT .narinfo for B", func(t *testing.T) {
 		rr := httptest.NewRecorder()
+
 		req, err := http.NewRequest("PUT", bNarinfoPath, bytes.NewReader(tdB.NarinfoContents))
 		if err != nil {
 			t.Fatal(err)
@@ -357,8 +365,10 @@ func TestHandler(t *testing.T) {
 	})
 
 	cNarinfoPath := "/" + nixbase32.EncodeToString(tdCOutputHash) + ".narinfo"
+
 	t.Run("PUT .narinfo for C (contains self-reference)", func(t *testing.T) {
 		rr := httptest.NewRecorder()
+
 		req, err := http.NewRequest("PUT", cNarinfoPath, bytes.NewReader(tdC.NarinfoContents))
 		if err != nil {
 			t.Fatal(err)

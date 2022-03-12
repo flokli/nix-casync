@@ -41,6 +41,7 @@ type TestDataT map[string]TestData
 // c contains a self-reference.
 func GetTestData() TestDataT {
 	testDataT := make(TestDataT, 2)
+
 	for _, item := range []struct {
 		name            string
 		narinfoContents []byte
@@ -62,5 +63,6 @@ func GetTestData() TestDataT {
 			NarContents:     item.narContents,
 		}
 	}
+
 	return testDataT
 }

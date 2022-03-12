@@ -67,6 +67,7 @@ func (csnr *CasyncStoreReader) Read(p []byte) (n int, err error) {
 		if err != nil {
 			return 0, err
 		}
+
 		_, err = csnr.f.Seek(0, 0)
 		if err != nil {
 			return 0, err
@@ -74,6 +75,7 @@ func (csnr *CasyncStoreReader) Read(p []byte) (n int, err error) {
 		// we successfully went till here
 		csnr.fileAssembled = true
 	}
+
 	return csnr.f.Read(p)
 }
 

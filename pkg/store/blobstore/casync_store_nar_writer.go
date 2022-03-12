@@ -70,6 +70,7 @@ func NewCasyncStoreWriter(
 func (csw *CasyncStoreWriter) Write(p []byte) (int, error) {
 	csw.hash.Write(p)
 	csw.bytesWritten += uint64(len(p))
+
 	return csw.f.Write(p)
 }
 
@@ -97,6 +98,7 @@ func (csw *CasyncStoreWriter) Close() error {
 	if err != nil {
 		return err
 	}
+
 	_, err = csw.f.Seek(0, 0)
 	if err != nil {
 		return err
@@ -129,6 +131,7 @@ func (csw *CasyncStoreWriter) Close() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 

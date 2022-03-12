@@ -41,9 +41,11 @@ func (m *MemoryStore) GetBlob(ctx context.Context, sha256 []byte) (io.ReadCloser
 	m.muBlobs.Lock()
 	v, ok := m.blobs[hex.EncodeToString(sha256)]
 	m.muBlobs.Unlock()
+
 	if ok {
 		return io.NopCloser(bytes.NewReader(v)), int64(len(v)), nil
 	}
+
 	return nil, 0, os.ErrNotExist
 }
 
@@ -61,6 +63,7 @@ func (msw *memoryStoreWriter) Write(p []byte) (n int, err error) {
 	msw.contents = append(msw.contents, p...)
 	msw.hash.Write(p)
 	msw.bytesWritten += uint64(len(p))
+
 	return len(p), nil
 }
 
@@ -68,6 +71,7 @@ func (msw *memoryStoreWriter) Close() error {
 	msw.memoryStore.muBlobs.Lock()
 	msw.memoryStore.blobs[hex.EncodeToString(msw.hash.Sum([]byte{}))] = msw.contents
 	msw.memoryStore.muBlobs.Unlock()
+
 	return nil
 }
 

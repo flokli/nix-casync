@@ -24,6 +24,7 @@ func NewCompressor(w io.Writer, compressionType string) (io.WriteCloser, error) 
 		z := zstd.NewWriterLevel(w, zstd.BestSpeed)
 		return z, nil
 	}
+
 	return nil, fmt.Errorf("unsupported compression type: %v", compressionType)
 }
 

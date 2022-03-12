@@ -30,6 +30,7 @@ func CompressionTypeToSuffix(compressionType string) (string, error) {
 			return compressionSuffix, nil
 		}
 	}
+
 	return "", fmt.Errorf("unknown compression type: %v", compressionType)
 }
 
@@ -53,6 +54,7 @@ func NewDecompressor(r io.Reader, compressionType string) (io.ReadCloser, error)
 		if err != nil {
 			return nil, err
 		}
+
 		return gzipReader, nil
 	case "lz4":
 		return io.NopCloser(lz4.NewReader(r)), nil
@@ -61,6 +63,7 @@ func NewDecompressor(r io.Reader, compressionType string) (io.ReadCloser, error)
 		if err != nil {
 			return nil, err
 		}
+
 		return io.NopCloser(xzReader), nil
 	case "zstd":
 		return zstd.NewReader(r), nil

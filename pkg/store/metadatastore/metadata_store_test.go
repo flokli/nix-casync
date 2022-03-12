@@ -71,7 +71,12 @@ func testMetadataStore(t *testing.T, metadataStore metadatastore.MetadataStore) 
 		t.Run("GetNarMetaNotFound", func(t *testing.T) {
 			_, err := metadataStore.GetNarMeta(context.Background(), tdANarMeta.NarHash)
 			if assert.Error(t, err) {
-				assert.ErrorIsf(t, err, os.ErrNotExist, "on a non-existent NarMeta, there should be a os.ErrNotExist in the error chain")
+				assert.ErrorIsf(
+					t,
+					err,
+					os.ErrNotExist,
+					"on a non-existent NarMeta, there should be a os.ErrNotExist in the error chain",
+				)
 			}
 		})
 
@@ -96,7 +101,12 @@ func testMetadataStore(t *testing.T, metadataStore metadatastore.MetadataStore) 
 		t.Run("GetPathInfoNotFound", func(t *testing.T) {
 			_, err := metadataStore.GetPathInfo(context.Background(), tdAPathInfo.OutputHash)
 			if assert.Error(t, err) {
-				assert.ErrorIsf(t, err, os.ErrNotExist, "on a non-existent PathInfo, there should be a os.ErrNotExist in the error chain")
+				assert.ErrorIsf(
+					t,
+					err,
+					os.ErrNotExist,
+					"on a non-existent PathInfo, there should be a os.ErrNotExist in the error chain",
+				)
 			}
 		})
 
@@ -151,7 +161,8 @@ func testMetadataStore(t *testing.T, metadataStore metadatastore.MetadataStore) 
 			err = metadataStore.PutPathInfo(context.Background(), tdAPathInfo)
 			assert.Error(t, err, "uploading PathInfo with references to non-existing NarMeta should fail")
 
-			// now try to upload NarMeta for A, then PathInfo for A, then NarMeta for B, then PathInfo for B, which should succeed
+			// now try to upload NarMeta for A, then PathInfo for A,
+			// then NarMeta for B, then PathInfo for B, which should succeed
 			err = metadataStore.PutNarMeta(context.Background(), tdANarMeta)
 			assert.NoError(t, err)
 			err = metadataStore.PutPathInfo(context.Background(), tdAPathInfo)

@@ -151,7 +151,8 @@ func TestHandler(t *testing.T) {
 		// blobStore.DropAll(context.Background())
 
 		t.Run("PUT compressed .nar", func(t *testing.T) {
-			// What name we upload it as doesn't really matter (we still use the narhash here, even though Nix would use the file hash)
+			// What name we upload it as doesn't really matter
+			// (we still use the narhash here, even though Nix would use the file hash)
 			// The only thing that matters is the extension.
 			narpathZstd := "/nar/" + nixbase32.EncodeToString(tdA.Narinfo.NarHash.Digest) + ".nar.zst"
 

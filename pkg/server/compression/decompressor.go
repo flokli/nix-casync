@@ -13,7 +13,7 @@ import (
 )
 
 // compressionSuffixToType maps from the compression suffix Nix uses when uploading to the compression type.
-var compressionSuffixToType = map[string]string{
+var compressionSuffixToType = map[string]string{ //nolint:gochecknoglobals
 	"":      "none",
 	".br":   "br",
 	".bz2":  "bzip2",

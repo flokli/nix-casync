@@ -26,21 +26,21 @@ var cNarinfoContents []byte
 //go:embed nar/0z2vk40phzzgsg14516mfs79l9fvl276b993mlqlb4rf0fd7hnwp.nar
 var cNarContents []byte
 
-type TestData struct {
+type Data struct {
 	NarinfoContents []byte
 	Narinfo         *narinfo.NarInfo
 	NarContents     []byte
 }
 
-type TestDataT map[string]TestData
+type DataTable map[string]Data
 
-// GetTestData returns testdata from //test
+// GetTestDataTable returns testdata from //test
 // it's a map with the following store paths:
 // a is a store path without any references.
 // b refers to it.
 // c contains a self-reference.
-func GetTestData() TestDataT {
-	testDataT := make(TestDataT, 2)
+func GetTestDataTable() DataTable {
+	testDataT := make(DataTable, 2)
 
 	for _, item := range []struct {
 		name            string
@@ -57,7 +57,7 @@ func GetTestData() TestDataT {
 			panic(fmt.Errorf("error parsing narinfo contents: %w", err))
 		}
 
-		testDataT[item.name] = TestData{
+		testDataT[item.name] = Data{
 			NarinfoContents: item.narinfoContents,
 			Narinfo:         narinfo,
 			NarContents:     item.narContents,

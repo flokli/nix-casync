@@ -31,7 +31,7 @@ func TestHandler(t *testing.T) {
 
 	server := server.NewServer(blobStore, metadataStore, "zstd", 40)
 
-	testDataT := test.GetTestData()
+	testDataT := test.GetTestDataTable()
 
 	tdA, exists := testDataT["a"]
 	if !exists {

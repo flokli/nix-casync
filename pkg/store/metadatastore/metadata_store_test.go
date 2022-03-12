@@ -45,7 +45,7 @@ func TestFileStore(t *testing.T) {
 
 // testMetadataStore runs all metadata store tests against the passed store.
 func testMetadataStore(t *testing.T, metadataStore metadatastore.MetadataStore) {
-	testDataT := test.GetTestData()
+	testDataT := test.GetTestDataTable()
 
 	tdA, exists := testDataT["a"]
 	if !exists {

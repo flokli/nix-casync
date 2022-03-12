@@ -20,7 +20,6 @@ func NewCompressor(w io.Writer, compressionType string) (io.WriteCloser, error) 
 
 		return b, nil
 	case "gzip":
-
 		return gzip.NewWriterLevel(w, gzip.BestSpeed)
 	case "zstd":
 		z := zstd.NewWriterLevel(w, zstd.BestSpeed)

@@ -93,7 +93,7 @@ func (c *CasyncStore) GetBlob(ctx context.Context, sha256 []byte) (io.ReadCloser
 	return csnr, caidx.Length(), nil
 }
 
-func (c *CasyncStore) PutBlob(ctx context.Context) (WriteCloseHasher, error) {
+func (c *CasyncStore) PutBlob(ctx context.Context) (WriteCloseHasher, error) { //nolint:ireturn
 	return NewCasyncStoreWriter(
 		ctx,
 

@@ -30,7 +30,7 @@ func (m *MemoryStore) Close() error {
 	return nil
 }
 
-func (m *MemoryStore) PutBlob(ctx context.Context) (WriteCloseHasher, error) {
+func (m *MemoryStore) PutBlob(ctx context.Context) (WriteCloseHasher, error) { //nolint:ireturn
 	return &memoryStoreWriter{
 		hash:        sha256.New(),
 		memoryStore: m,

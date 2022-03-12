@@ -27,6 +27,10 @@ var CLI struct { //nolint:gochecknoglobals
 }
 
 func main() {
+	retcode := 0
+
+	defer func() { os.Exit(retcode) }()
+
 	ctx := kong.Parse(&CLI)
 	switch ctx.Command() {
 	case "serve":
@@ -36,7 +40,11 @@ func main() {
 
 		blobStore, err := blobstore.NewCasyncStore(castrPath, caibxPath, CLI.Serve.AvgChunkSize)
 		if err != nil {
-			log.Fatal(err)
+			log.Errorf("Error initializing blobstore: %v", err)
+
+			retcode = -1
+
+			return
 		}
 
 		// initialize narinfo store
@@ -44,7 +52,11 @@ func main() {
 
 		metadataStore, err := metadatastore.NewFileStore(narinfoPath)
 		if err != nil {
-			log.Fatal(err)
+			log.Errorf("Error initializing metadatastore: %v", err)
+
+			retcode = -1
+
+			return
 		}
 
 		s := server.NewServer(blobStore, metadataStore, CLI.Serve.NarCompression, CLI.Serve.Priority)
@@ -75,7 +87,14 @@ func main() {
 			srv.Handler = middleware.Logger(s.Handler)
 		}
 
-		log.Fatal(srv.ListenAndServe())
+		err = srv.ListenAndServe()
+		if err != nil {
+			log.Errorf("Error listening: %v", err)
+
+			retcode = 1
+
+			return
+		}
 	default:
 		panic(ctx.Command())
 	}

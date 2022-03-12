@@ -72,7 +72,11 @@ func testBlobStore(t *testing.T, blobStore blobstore.BlobStore) {
 	t.Run("GetBlobNotFound", func(t *testing.T) {
 		_, _, err := blobStore.GetBlob(context.Background(), tdANarHash)
 		if assert.Error(t, err) {
-			assert.ErrorIsf(t, err, os.ErrNotExist, "on a non-existent blob, there should be a os.ErrNotExist in the error chain")
+			assert.ErrorIsf(t,
+				err,
+				os.ErrNotExist,
+				"on a non-existent blob, there should be a os.ErrNotExist in the error chain",
+			)
 		}
 	})
 

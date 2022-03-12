@@ -1,4 +1,4 @@
-package metadatastore
+package metadatastore_test
 
 import (
 	"context"
@@ -6,12 +6,13 @@ import (
 	"os"
 	"testing"
 
+	"github.com/flokli/nix-casync/pkg/store/metadatastore"
 	"github.com/flokli/nix-casync/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMemoryStore(t *testing.T) {
-	memoryStore := NewMemoryStore()
+	memoryStore := metadatastore.NewMemoryStore()
 	t.Cleanup(func() {
 		memoryStore.Close()
 	})
@@ -26,7 +27,7 @@ func TestFileStore(t *testing.T) {
 	t.Cleanup(func() {
 		os.RemoveAll(tmpDir)
 	})
-	fileStore, err := NewFileStore(tmpDir)
+	fileStore, err := metadatastore.NewFileStore(tmpDir)
 	if err != nil {
 		panic(err)
 	}
@@ -37,14 +38,14 @@ func TestFileStore(t *testing.T) {
 }
 
 // testMetadataStore runs all metadata store tests against the passed store.
-func testMetadataStore(t *testing.T, metadataStore MetadataStore) {
+func testMetadataStore(t *testing.T, metadataStore metadatastore.MetadataStore) {
 	testDataT := test.GetTestData()
 
 	tdA, exists := testDataT["a"]
 	if !exists {
 		panic("testData[a] doesn't exist")
 	}
-	tdAPathInfo, tdANarMeta, err := ParseNarinfo(tdA.Narinfo)
+	tdAPathInfo, tdANarMeta, err := metadatastore.ParseNarinfo(tdA.Narinfo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +53,7 @@ func testMetadataStore(t *testing.T, metadataStore MetadataStore) {
 	if !exists {
 		panic("testData[b] doesn't exist")
 	}
-	tdBPathInfo, tdBNarMeta, err := ParseNarinfo(tdB.Narinfo)
+	tdBPathInfo, tdBNarMeta, err := metadatastore.ParseNarinfo(tdB.Narinfo)
 	if err != nil {
 		t.Fatal(err)
 	}

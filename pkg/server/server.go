@@ -78,6 +78,8 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unable to decode outputhash: %v", err), http.StatusBadRequest)
 	}
+
+	//nolint:nestif
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		// get PathInfo
 		pathInfo, err := s.metadataStore.GetPathInfo(r.Context(), outputhash)
@@ -121,6 +123,8 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+
+	//nolint:nestif
 	if r.Method == http.MethodPut {
 		ni, err := narinfo.Parse(r.Body)
 		if err != nil {
@@ -222,6 +226,7 @@ func (s *Server) RegisterNarHandlers() {
 }
 
 func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
+	//nolint:nestif
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		narhashStr := chi.URLParam(r, "narhash")
 
@@ -278,6 +283,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//nolint:nestif
 	if r.Method == http.MethodPut {
 		blobWriter, err := s.blobStore.PutBlob(r.Context())
 		if err != nil {

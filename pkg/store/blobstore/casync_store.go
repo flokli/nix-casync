@@ -64,8 +64,7 @@ func NewCasyncStore(localStoreDir, localIndexStoreDir string, avgChunkSize int) 
 }
 
 func (c *CasyncStore) Close() error {
-	err := c.localStore.Close()
-	if err != nil {
+	if err := c.localStore.Close(); err != nil {
 		return err
 	}
 	return c.localIndexStore.Close()

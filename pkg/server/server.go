@@ -56,15 +56,10 @@ func NewServer(blobStore blobstore.BlobStore, metadataStore metadatastore.Metada
 }
 
 func (s *Server) Close() error {
-	err1 := s.blobStore.Close()
-	err2 := s.metadataStore.Close()
-	if err1 != nil {
-		return err1
+	if err := s.blobStore.Close(); err != nil {
+		return err
 	}
-	if err2 != nil {
-		return err2
-	}
-	return nil
+	return s.metadataStore.Close()
 }
 
 func (s *Server) RegisterNarinfoHandlers() {

@@ -68,7 +68,10 @@ func TestHandler(t *testing.T) {
 
 		t.Run("GET non-existent .nar", func(t *testing.T) {
 			rr := httptest.NewRecorder()
-			req, err := http.NewRequest("GET", narpath, nil)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			req, err := http.NewRequestWithContext(ctx, "GET", narpath, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -99,7 +102,10 @@ func TestHandler(t *testing.T) {
 
 		t.Run("GET .nar", func(t *testing.T) {
 			rr := httptest.NewRecorder()
-			req, err := http.NewRequest("GET", narpath, nil)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			req, err := http.NewRequestWithContext(ctx, "GET", narpath, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -120,7 +126,10 @@ func TestHandler(t *testing.T) {
 		// get compressed .nar, which should match the uncompressed .nar after decompressing with zstd
 		t.Run("GET compressed .nar", func(t *testing.T) {
 			rr := httptest.NewRecorder()
-			req, err := http.NewRequest("GET", narpath+".zst", nil)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			req, err := http.NewRequestWithContext(ctx, "GET", narpath+".zst", nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -166,7 +175,10 @@ func TestHandler(t *testing.T) {
 			assert.NoError(t, err, "closing compressor shouldn't error")
 
 			rr := httptest.NewRecorder()
-			req, err := http.NewRequest("PUT", narpathZstd, bytes.NewReader(b.Bytes()))
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			req, err := http.NewRequestWithContext(ctx, "PUT", narpathZstd, bytes.NewReader(b.Bytes()))
 			assert.NoError(t, err)
 
 			server.Handler.ServeHTTP(rr, req)
@@ -197,7 +209,10 @@ func TestHandler(t *testing.T) {
 
 		t.Run("GET non-existent .narinfo", func(t *testing.T) {
 			rr := httptest.NewRecorder()
-			req, err := http.NewRequest("GET", path, nil)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			req, err := http.NewRequestWithContext(ctx, "GET", path, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -227,7 +242,10 @@ func TestHandler(t *testing.T) {
 		// (as we initialize the handler with zstd compression)
 		t.Run("GET .narinfo", func(t *testing.T) {
 			rr := httptest.NewRecorder()
-			req, err := http.NewRequest("GET", path, nil)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			req, err := http.NewRequestWithContext(ctx, "GET", path, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -247,7 +265,10 @@ func TestHandler(t *testing.T) {
 
 		t.Run("PUT .narinfo referring to compressed NAR", func(t *testing.T) {
 			rr := httptest.NewRecorder()
-			req, err := http.NewRequest("PUT", path, bytes.NewReader(smallNarinfoContents))
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			req, err := http.NewRequestWithContext(ctx, "PUT", path, bytes.NewReader(smallNarinfoContents))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -266,7 +287,10 @@ func TestHandler(t *testing.T) {
 		// when we retrieve it back, it should still look like the minimal narinfo
 		t.Run("GET .narinfo", func(t *testing.T) {
 			rr := httptest.NewRecorder()
-			req, err := http.NewRequest("GET", path, nil)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			req, err := http.NewRequestWithContext(ctx, "GET", path, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -287,7 +311,10 @@ func TestHandler(t *testing.T) {
 		t.Run("PUT .nar for B", func(t *testing.T) {
 			narpath := "/nar/" + nixbase32.EncodeToString(tdB.Narinfo.NarHash.Digest) + ".nar"
 			rr := httptest.NewRecorder()
-			req, err := http.NewRequest("PUT", narpath, bytes.NewReader(tdB.NarContents))
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			req, err := http.NewRequestWithContext(ctx, "PUT", narpath, bytes.NewReader(tdB.NarContents))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -329,7 +356,10 @@ func TestHandler(t *testing.T) {
 
 	t.Run("GET .narinfo for B", func(t *testing.T) {
 		rr := httptest.NewRecorder()
-		req, err := http.NewRequest("GET", bNarinfoPath, nil)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		req, err := http.NewRequestWithContext(ctx, "GET", bNarinfoPath, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -347,7 +377,10 @@ func TestHandler(t *testing.T) {
 	t.Run("PUT .nar for C", func(t *testing.T) {
 		narpath := "/nar/" + nixbase32.EncodeToString(tdC.Narinfo.NarHash.Digest) + ".nar"
 		rr := httptest.NewRecorder()
-		req, err := http.NewRequest("PUT", narpath, bytes.NewReader(tdC.NarContents))
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		req, err := http.NewRequestWithContext(ctx, "PUT", narpath, bytes.NewReader(tdC.NarContents))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -369,8 +402,10 @@ func TestHandler(t *testing.T) {
 
 	t.Run("PUT .narinfo for C (contains self-reference)", func(t *testing.T) {
 		rr := httptest.NewRecorder()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-		req, err := http.NewRequest("PUT", cNarinfoPath, bytes.NewReader(tdC.NarinfoContents))
+		req, err := http.NewRequestWithContext(ctx, "PUT", cNarinfoPath, bytes.NewReader(tdC.NarinfoContents))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -388,7 +423,10 @@ func TestHandler(t *testing.T) {
 
 	t.Run("GET .narinfo for C (contains self-reference)", func(t *testing.T) {
 		rr := httptest.NewRecorder()
-		req, err := http.NewRequest("GET", cNarinfoPath, nil)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		req, err := http.NewRequestWithContext(ctx, "GET", cNarinfoPath, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

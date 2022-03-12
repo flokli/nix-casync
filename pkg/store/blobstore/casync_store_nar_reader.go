@@ -81,5 +81,6 @@ func (csnr *CasyncStoreReader) Read(p []byte) (n int, err error) {
 
 func (csnr *CasyncStoreReader) Close() error {
 	defer os.Remove(csnr.f.Name())
+
 	return csnr.f.Close()
 }

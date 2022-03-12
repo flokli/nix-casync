@@ -17,11 +17,14 @@ func NewCompressor(w io.Writer, compressionType string) (io.WriteCloser, error) 
 	switch compressionType {
 	case "br":
 		b := brotli.NewWriterLevel(w, brotli.BestSpeed)
+
 		return b, nil
 	case "gzip":
+
 		return gzip.NewWriterLevel(w, gzip.BestSpeed)
 	case "zstd":
 		z := zstd.NewWriterLevel(w, zstd.BestSpeed)
+
 		return z, nil
 	}
 

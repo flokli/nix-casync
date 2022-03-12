@@ -44,11 +44,13 @@ func NewFileStore(baseDirectory string) (*FileStore, error) {
 
 func (fs *FileStore) pathInfoPath(outputHash []byte) string {
 	encodedHash := nixbase32.EncodeToString(outputHash)
+
 	return path.Join(fs.pathInfoDirectory, encodedHash[:4], encodedHash+".json")
 }
 
 func (fs *FileStore) narMetaPath(narHash []byte) string {
 	encodedHash := nixbase32.EncodeToString(narHash)
+
 	return path.Join(fs.narMetaDirectory, encodedHash[:4], encodedHash+".json")
 }
 

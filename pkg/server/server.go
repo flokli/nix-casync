@@ -107,6 +107,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 		narinfoContent, err := metadatastore.RenderNarinfo(pathInfo, narMeta, s.narServeCompression)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Unable to render .narinfo: %v", err), http.StatusInternalServerError)
+
 			return
 		}
 
@@ -184,6 +185,7 @@ func (s *Server) handleNarinfo(w http.ResponseWriter, r *http.Request) {
 			err = s.metadataStore.PutPathInfo(r.Context(), sentPathInfo)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Error putting PathInfo: %v", err), http.StatusInternalServerError)
+
 				return
 			}
 		}
@@ -269,6 +271,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			log.Errorf("Error sending Narfile to client: %v", err)
+
 			return
 		}
 
@@ -279,6 +282,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		blobWriter, err := s.blobStore.PutBlob(r.Context())
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error initializing blobWriter: %v", err), http.StatusInternalServerError)
+
 			return
 		}
 		defer blobWriter.Close()
@@ -305,6 +309,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
 				http.Error(w, fmt.Sprintf("Error checking for existing NarMeta: %v", err), http.StatusInternalServerError)
+
 				return
 			}
 			// We don't have this NarMeta yet, store it.
@@ -317,6 +322,7 @@ func (s *Server) handleNar(w http.ResponseWriter, r *http.Request) {
 			err = s.metadataStore.PutNarMeta(r.Context(), narMeta)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Error putting NarMeta: %v", err), http.StatusInternalServerError)
+
 				return
 			}
 		}

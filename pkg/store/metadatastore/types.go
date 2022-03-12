@@ -118,7 +118,7 @@ func RenderNarinfo(pathInfo *PathInfo, narMeta *NarMeta, compressionType string)
 		CA: pathInfo.CA,
 	}
 
-	suffix, err := compression.CompressionTypeToSuffix(compressionType)
+	suffix, err := compression.TypeToSuffix(compressionType)
 	if err != nil {
 		return "", err
 	}

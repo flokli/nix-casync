@@ -12,8 +12,8 @@ import (
 	"github.com/ulikunitz/xz"
 )
 
-// CompressionSuffixToType maps from the compression suffix Nix uses when uploading to the compression type.
-var CompressionSuffixToType = map[string]string{
+// compressionSuffixToType maps from the compression suffix Nix uses when uploading to the compression type.
+var compressionSuffixToType = map[string]string{
 	"":      "none",
 	".br":   "br",
 	".bz2":  "bzip2",
@@ -24,8 +24,8 @@ var CompressionSuffixToType = map[string]string{
 	".zst":  "zstd",
 }
 
-func CompressionTypeToSuffix(compressionType string) (string, error) {
-	for compressionSuffix, aCompressionType := range CompressionSuffixToType {
+func TypeToSuffix(compressionType string) (string, error) {
+	for compressionSuffix, aCompressionType := range compressionSuffixToType {
 		if aCompressionType == compressionType {
 			return compressionSuffix, nil
 		}
@@ -75,7 +75,7 @@ func NewDecompressor(r io.Reader, compressionType string) (io.ReadCloser, error)
 
 func NewDecompressorBySuffix(r io.Reader, compressionSuffix string) (io.ReadCloser, error) {
 	// try to lookup the compression type from compressionSuffixToType
-	if compressionType, ok := CompressionSuffixToType[compressionSuffix]; ok {
+	if compressionType, ok := compressionSuffixToType[compressionSuffix]; ok {
 		return NewDecompressor(r, compressionType)
 	}
 

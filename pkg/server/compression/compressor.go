@@ -33,7 +33,7 @@ func NewCompressor(w io.Writer, compressionType string) (io.WriteCloser, error) 
 // NewCompressorBySuffix returns an io.WriteCloser that compresses its input.
 func NewCompressorBySuffix(w io.Writer, compressionSuffix string) (io.WriteCloser, error) {
 	// try to lookup the compression type from compressionSuffixToType
-	if compressionType, ok := CompressionSuffixToType[compressionSuffix]; ok {
+	if compressionType, ok := compressionSuffixToType[compressionSuffix]; ok {
 		return NewCompressor(w, compressionType)
 	}
 

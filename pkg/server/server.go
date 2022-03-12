@@ -27,7 +27,10 @@ type Server struct {
 	io.Closer
 }
 
-func NewServer(blobStore blobstore.BlobStore, metadataStore metadatastore.MetadataStore, narServeCompression string, priority int) *Server {
+func NewServer(blobStore blobstore.BlobStore,
+	metadataStore metadatastore.MetadataStore,
+	narServeCompression string,
+	priority int) *Server {
 	r := chi.NewRouter()
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		_, err := w.Write([]byte("nix-casync"))

@@ -15,7 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var CLI struct {
+var CLI struct { //nolint:gochecknoglobals
 	Serve struct {
 		CachePath      string `name:"cache-path" help:"Path to use for a local cache, containing castr, caibx and narinfo files." type:"path" default:"/var/cache/nix-casync"`
 		NarCompression string `name:"nar-compression" help:"The compression algorithm to advertise .nar files with (zstd,gzip,brotli,none)" enum:"zstd,gzip,brotli,none" type:"string" default:"zstd"`

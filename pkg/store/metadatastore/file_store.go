@@ -62,6 +62,8 @@ func (fs *FileStore) GetPathInfo(ctx context.Context, outputHash []byte) (*PathI
 		return nil, err
 	}
 
+	defer f.Close()
+
 	b, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
@@ -107,6 +109,7 @@ func (fs *FileStore) PutPathInfo(ctx context.Context, pathinfo *PathInfo) error 
 		return err
 	}
 
+	defer tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
 
 	// serialize the pathinfo to json
@@ -140,6 +143,8 @@ func (fs *FileStore) GetNarMeta(ctx context.Context, narHash []byte) (*NarMeta, 
 	if err != nil {
 		return nil, err
 	}
+
+	defer f.Close()
 
 	b, err := io.ReadAll(f)
 	if err != nil {
@@ -189,6 +194,7 @@ func (fs *FileStore) PutNarMeta(ctx context.Context, narMeta *NarMeta) error {
 		return err
 	}
 
+	defer tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
 
 	// serialize the pathinfo to json

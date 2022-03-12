@@ -69,7 +69,7 @@ func ParseNarinfo(narinfo *narinfo.NarInfo) (*PathInfo, *NarMeta, error) {
 	}
 
 	// Construct References
-	var references [][]byte
+	references := make([][]byte, 0, len(narinfo.References))
 
 	for _, referenceStr := range narinfo.References {
 		hashRef, err := nixbase32.DecodeString(referenceStr[0:32])

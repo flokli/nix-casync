@@ -12,7 +12,10 @@ import (
 	"github.com/folbricht/desync"
 )
 
-// CasyncStoreWriter provides a io.WriteCloser interface
+// CasyncStoreWriter implements WriteCloseHasher.
+var _ WriteCloseHasher = &CasyncStoreWriter{}
+
+// CasyncStoreWriter provides a io.WriteClose[Hashe]r interface
 // The whole content of the blob is written to it.
 // Internally, it'll write it to a temporary file.
 // On close, its contents will be chunked,

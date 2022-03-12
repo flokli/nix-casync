@@ -57,7 +57,15 @@ func (csnr *CasyncStoreReader) Read(p []byte) (n int, err error) {
 	// if there's any error, we return it.
 	// It's up to the caller to also run Close(), which will clean up the tmpfile
 	if !csnr.fileAssembled {
-		_, err = desync.AssembleFile(csnr.ctx, csnr.f.Name(), csnr.caidx, csnr.desyncStore, csnr.seeds, csnr.concurrency, csnr.pb)
+		_, err = desync.AssembleFile(
+			csnr.ctx,
+			csnr.f.Name(),
+			csnr.caidx,
+			csnr.desyncStore,
+			csnr.seeds,
+			csnr.concurrency,
+			csnr.pb,
+		)
 		if err != nil {
 			return 0, err
 		}

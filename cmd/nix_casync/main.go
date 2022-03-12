@@ -17,12 +17,12 @@ import (
 
 var CLI struct { //nolint:gochecknoglobals
 	Serve struct {
-		CachePath      string `name:"cache-path" help:"Path to use for a local cache, containing castr, caibx and narinfo files." type:"path" default:"/var/cache/nix-casync"`
-		NarCompression string `name:"nar-compression" help:"The compression algorithm to advertise .nar files with (zstd,gzip,brotli,none)" enum:"zstd,gzip,brotli,none" type:"string" default:"zstd"`
-		ListenAddr     string `name:"listen-addr" help:"The address this service listens on" type:"string" default:"[::]:9000"`
-		Priority       int    `name:"priority" help:"What priority to advertise in nix-cache-info. Defaults to 40." type:"int" default:"40"`
-		AvgChunkSize   int    `name:"avg-chunk-size" help:"The average chunking size to use when chunking NAR files, in bytes. Max is 4 times that, Min is a quarter of this value." type:"int" default:"65536"`
-		AccessLog      bool   `name:"access-log" help:"Enable access logging" type:"bool" default:"true" negatable:""`
+		CachePath      string `name:"cache-path" help:"Path to use for a local cache, containing castr, caibx and narinfo files." type:"path" default:"/var/cache/nix-casync"`                                   //nolint:lll
+		NarCompression string `name:"nar-compression" help:"The compression algorithm to advertise .nar files with (zstd,gzip,brotli,none)" enum:"zstd,gzip,brotli,none" type:"string" default:"zstd"`           //nolint:lll
+		ListenAddr     string `name:"listen-addr" help:"The address this service listens on" type:"string" default:"[::]:9000"`                                                                                  //nolint:lll
+		Priority       int    `name:"priority" help:"What priority to advertise in nix-cache-info. Defaults to 40." type:"int" default:"40"`                                                                     //nolint:lll
+		AvgChunkSize   int    `name:"avg-chunk-size" help:"The average chunking size to use when chunking NAR files, in bytes. Max is 4 times that, Min is a quarter of this value." type:"int" default:"65536"` //nolint:lll
+		AccessLog      bool   `name:"access-log" help:"Enable access logging" type:"bool" default:"true" negatable:""`                                                                                           //nolint:lll
 	} `cmd:"" serve:"Serve a local nix cache."`
 }
 

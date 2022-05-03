@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/flokli/nix-casync/pkg/util"
-	"github.com/numtide/go-nix/nixbase32"
+	"github.com/nix-community/go-nix/pkg/nixbase32"
 	"github.com/stretchr/testify/assert"
 )
 

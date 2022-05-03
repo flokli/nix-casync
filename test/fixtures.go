@@ -5,7 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 
-	"github.com/numtide/go-nix/nar/narinfo"
+	"github.com/nix-community/go-nix/pkg/nar/narinfo"
 )
 
 //go:embed x236iz9shqypbnm64qgqisz0jr4wmj2b.narinfo

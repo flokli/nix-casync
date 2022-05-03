@@ -1,7 +1,7 @@
 package util
 
 import (
-	"github.com/numtide/go-nix/nixbase32"
+	"github.com/nix-community/go-nix/pkg/nixbase32"
 )
 
 const (

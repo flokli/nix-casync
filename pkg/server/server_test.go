@@ -16,8 +16,8 @@ import (
 	"github.com/flokli/nix-casync/pkg/store/metadatastore"
 	"github.com/flokli/nix-casync/pkg/util"
 	"github.com/flokli/nix-casync/test"
-	"github.com/numtide/go-nix/nar/narinfo"
-	"github.com/numtide/go-nix/nixbase32"
+	"github.com/nix-community/go-nix/pkg/nar/narinfo"
+	"github.com/nix-community/go-nix/pkg/nixbase32"
 	"github.com/stretchr/testify/assert"
 )
 

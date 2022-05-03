@@ -10,9 +10,9 @@ import (
 
 	"github.com/flokli/nix-casync/pkg/server/compression"
 	"github.com/flokli/nix-casync/pkg/util"
-	"github.com/numtide/go-nix/hash"
-	"github.com/numtide/go-nix/nar/narinfo"
-	"github.com/numtide/go-nix/nixbase32"
+	"github.com/nix-community/go-nix/pkg/hash"
+	"github.com/nix-community/go-nix/pkg/nar/narinfo"
+	"github.com/nix-community/go-nix/pkg/nixbase32"
 )
 
 type MetadataStore interface {

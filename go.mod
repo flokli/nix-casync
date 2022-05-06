@@ -3,9 +3,9 @@ module github.com/flokli/nix-casync
 go 1.16
 
 require (
+	github.com/DataDog/zstd v1.5.2
 	github.com/alecthomas/kong v0.5.0
 	github.com/andybalholm/brotli v1.0.4
-	github.com/datadog/zstd v1.4.5
 	github.com/folbricht/desync v0.9.0
 	github.com/frankban/quicktest v1.14.0 // indirect
 	github.com/go-chi/chi v1.5.4

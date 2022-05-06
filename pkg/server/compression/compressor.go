@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/DataDog/zstd"
 	"github.com/andybalholm/brotli"
-	"github.com/datadog/zstd"
 )
 
 // NewCompressor returns an io.WriteCloser that compresses its input.

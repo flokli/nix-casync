@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/datadog/zstd"
+	"github.com/DataDog/zstd"
 	"github.com/flokli/nix-casync/pkg/server"
 	"github.com/flokli/nix-casync/pkg/server/compression"
 	"github.com/flokli/nix-casync/pkg/store/blobstore"

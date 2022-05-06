@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/DataDog/zstd"
 	"github.com/andybalholm/brotli"
-	"github.com/datadog/zstd"
 	"github.com/pierrec/lz4"
 	"github.com/ulikunitz/xz"
 )

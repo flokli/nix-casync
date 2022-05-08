@@ -6,7 +6,7 @@ import (
 	"io"
 
 	"github.com/andybalholm/brotli"
-	"github.com/datadog/zstd"
+	"github.com/klauspost/compress/zstd"
 )
 
 // NewCompressor returns an io.WriteCloser that compresses its input.
@@ -22,9 +22,7 @@ func NewCompressor(w io.Writer, compressionType string) (io.WriteCloser, error) 
 	case "gzip":
 		return gzip.NewWriterLevel(w, gzip.BestSpeed)
 	case "zstd":
-		z := zstd.NewWriterLevel(w, zstd.BestSpeed)
-
-		return z, nil
+		return zstd.NewWriter(w, zstd.WithEncoderLevel(zstd.SpeedDefault))
 	}
 
 	return nil, fmt.Errorf("unsupported compression type: %v", compressionType)

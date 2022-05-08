@@ -7,7 +7,7 @@ import (
 	"io"
 
 	"github.com/andybalholm/brotli"
-	"github.com/datadog/zstd"
+	"github.com/klauspost/compress/zstd"
 	"github.com/pierrec/lz4"
 	"github.com/ulikunitz/xz"
 )
@@ -66,7 +66,12 @@ func NewDecompressor(r io.Reader, compressionType string) (io.ReadCloser, error)
 
 		return io.NopCloser(xzReader), nil
 	case "zstd":
-		return zstd.NewReader(r), nil
+		zstdr, err := zstd.NewReader(r)
+		if err != nil {
+			return nil, err
+		}
+
+		return io.NopCloser(zstdr), nil
 	}
 
 	// compress, grzip, lzrzip, lzip, lzop, lzma

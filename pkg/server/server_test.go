@@ -9,13 +9,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/datadog/zstd"
 	"github.com/flokli/nix-casync/pkg/server"
 	"github.com/flokli/nix-casync/pkg/server/compression"
 	"github.com/flokli/nix-casync/pkg/store/blobstore"
 	"github.com/flokli/nix-casync/pkg/store/metadatastore"
 	"github.com/flokli/nix-casync/pkg/util"
 	"github.com/flokli/nix-casync/test"
+	"github.com/klauspost/compress/zstd"
 	"github.com/nix-community/go-nix/pkg/nar/narinfo"
 	"github.com/nix-community/go-nix/pkg/nixbase32"
 	"github.com/stretchr/testify/assert"
@@ -145,7 +145,10 @@ func TestHandler(t *testing.T) {
 			}
 
 			// read in the retrieved body
-			zstdReader := zstd.NewReader(bytes.NewReader(buf))
+			zstdReader, err := zstd.NewReader(bytes.NewReader(buf))
+			if err != nil {
+				t.Fatal(err)
+			}
 			defer zstdReader.Close()
 			actualContents, err := io.ReadAll(zstdReader)
 			if err != nil {

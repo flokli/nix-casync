@@ -1,3 +1,5 @@
+> :warning: **This project is archived**: This was an experiment, and most of the findings make up their way into the Tvix Store protocol. Check [my blog](https://flokli.de/posts/) and [Tvix](https://code.tvl.fyi/log/tvix) for more updates!
+
 # nix-casync
 A more efficient way to store and substitute Nix store paths.
 
